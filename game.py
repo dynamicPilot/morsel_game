@@ -7,6 +7,7 @@ import random
 import config as conf
 
 from tail_preparing import TailsData
+from drag_drop_labels import DragLabel, DropLabel
 
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QInputDialog, QGridLayout, QSizePolicy, QApplication, QScrollArea, QMessageBox)
@@ -35,8 +36,17 @@ class NewGame(QWidget):
         self.rest_player = None
         self.game_over = None
 
+        self.active_tail = None
+        self.active_desk_id = None
+        self.game_desk_id = None
+        
+        self.game_state = None
+
         # set global style sheets for buttons
         self.add_tail_btn_style = ["QPushButton {background: transparent; border: none; color: 'white'}", "QPushButton:pressed {background-color: #181e1a; border-radius: 2px; color: 'white'} QPushButton {background-color: #1b3522; border-radius: 2px; color: 'white'}"]
+        self.reset_tail_btn_style = ["QPushButton {background: transparent; border: none; color: 'white'}", "QPushButton:pressed {background-color: #9f7224; border-radius: 2px; color: 'white'} QPushButton {background-color: #9f7224; border-radius: 2px; color: 'white'}"]
+        self.set_tail_btn_style = ["QPushButton {background: transparent; border: none; color: 'white'}", "QPushButton:pressed {background-color: #2f395a; border-radius: 2px; color: 'white'} QPushButton {background-color: #2f395a; border-radius: 2px; color: 'white'}"]
+        
 
         # set QWidget style
         self.setStyleSheet("background-color:white;")
@@ -115,7 +125,7 @@ class NewGame(QWidget):
         desk_height = conf.tail_size*conf.game_grid_height
         self.game_desk.setMinimumSize(QtCore.QSize(desk_width, desk_height))
         self.game_desk.setMaximumSize(QtCore.QSize(desk_width, desk_height))
-        self.game_grid = [[{'widget': None, 'empty': True, 'tail': None} for i in range(conf.game_grid_width)] for j in range(conf.game_grid_height)]
+        self.game_grid = [[{'widget': None, 'tail': None, 'player': None, 'active': False, 'transform': 0} for i in range(conf.game_grid_width)] for j in range(conf.game_grid_height)]
 
         grid = QGridLayout()
         grid.setSpacing(5)
@@ -123,18 +133,24 @@ class NewGame(QWidget):
         # create empty game grid
         for col in range(conf.game_grid_width):
             for row in range(conf.game_grid_height):
+                self.game_desk_id = (row, col)
                 tail_widget = self.create_tail_container()
                 self.game_grid[row][col]['widget'] = tail_widget
                 grid.addWidget(tail_widget, row, col, QtCore.Qt.AlignCenter)
         
         # set start tail
         self.set_tail_to_container(self.game_grid[conf.start_tail_position[0]][conf.start_tail_position[0]]['widget'], self.tails[0]['name'])
+        self.game_grid[conf.start_tail_position[0]][conf.start_tail_position[0]]['tail'] = self.tails[0]['number']
 
         self.game_desk.setLayout(grid)
 
 
-    def create_tail_container(self, tail_size = conf.tail_size):
-        tail_container_label = QLabel()
+    def create_tail_container(self, tail_size = conf.tail_size, is_drag = False):
+        if not is_drag:
+            tail_container_label = DropLabel(self, self.game_desk_id, self.game_grid)
+        else:
+            tail_container_label = DragLabel(self)
+
         tail_container_label.setStyleSheet("background-color: #ebebeb; border-style: outset; border-color: #5b5c5b; border-width: 1px; border-radius: 2px;")
         tail_container_label.setAlignment(QtCore.Qt.AlignCenter)
         tail_container_label.setMinimumSize(QtCore.QSize(tail_size, tail_size))
@@ -163,15 +179,16 @@ class NewGame(QWidget):
         player_label.adjustSize()
         v_box.addWidget(player_label, alignment=QtCore.Qt.AlignCenter)
         
-        player_icon_label = QLabel()
+        player_icon_label = QLabel(self)
         player_icon_pixmap = QPixmap(f'{self.path_to_icon}/{self.players[player_key]["color"]}_circle.png')
         player_icon_pixmap = player_icon_pixmap.scaledToHeight(50)
         player_icon_label.setPixmap(player_icon_pixmap)
         player_icon_label.setAlignment(QtCore.Qt.AlignCenter)
         player_icon_label.adjustSize()
         v_box.addWidget(player_icon_label, alignment=QtCore.Qt.AlignCenter)
+        v_box.addStretch(1)
         
-        tail_widget = self.create_tail_container(conf.player_tail_size)
+        tail_widget = self.create_tail_container(conf.player_tail_size, True)
         tail_widget.adjustSize()
         v_box.addWidget(tail_widget, alignment=QtCore.Qt.AlignCenter)
         v_box.addStretch(1)
@@ -185,10 +202,28 @@ class NewGame(QWidget):
         add_tail_btn.setMinimumSize(QtCore.QSize(100, 50))
         v_box.addWidget(add_tail_btn, alignment=QtCore.Qt.AlignCenter)
 
+        reset_tail_btn = QPushButton('Reset Tail', self)
+        reset_tail_btn.setFont(QFont("Century", 10, QFont.Bold))
+        reset_tail_btn.setStyleSheet(self.reset_tail_btn_style[0])
+        reset_tail_btn.setEnabled(False)
+        reset_tail_btn.setMinimumSize(QtCore.QSize(100, 50))
+        v_box.addWidget(reset_tail_btn, alignment=QtCore.Qt.AlignCenter)
+
+        set_tail_btn = QPushButton('Set Tail', self)
+        set_tail_btn.setFont(QFont("Century", 10, QFont.Bold))
+        set_tail_btn.setStyleSheet(self.set_tail_btn_style[0])
+        set_tail_btn.setEnabled(False)
+        set_tail_btn.setMinimumSize(QtCore.QSize(100, 50))
+        v_box.addWidget(set_tail_btn, alignment=QtCore.Qt.AlignCenter)
+
         if player_key == "player1":
             add_tail_btn.clicked.connect(self.add_new_tail_to_player1)
+            reset_tail_btn.clicked.connect(self.reset_new_tail_to_player1)
+            set_tail_btn.clicked.connect(self.set_new_tail_to_player1)
         else:
             add_tail_btn.clicked.connect(self.add_new_tail_to_player2)
+            reset_tail_btn.clicked.connect(self.reset_new_tail_to_player2)
+            set_tail_btn.clicked.connect(self.set_new_tail_to_player2)
         v_box.addStretch(1)
         
         player_desk.setLayout(v_box)
@@ -197,6 +232,8 @@ class NewGame(QWidget):
         self.players[player_key]['desk'] = player_desk
         self.players[player_key]['tail_widget'] = tail_widget
         self.players[player_key]['add_tail_btn'] = add_tail_btn
+        self.players[player_key]['reset_tail_btn'] = reset_tail_btn
+        self.players[player_key]['set_tail_btn'] = set_tail_btn
 
 
     def start_game(self):
@@ -207,51 +244,250 @@ class NewGame(QWidget):
         random.shuffle(players_list)
         self.active_player = players_list[0]
         self.rest_player = players_list[1]
-        print(self.active_player)
         self.game_over = False
-        self.make_add_tail_button_visible()
+        self.game_state = 'add new'
+        self.make_player_button_visible()
         self.start_game_btn.setEnabled(False)
 
+        for col in range(conf.game_grid_width):
+            for row in range(conf.game_grid_height):
+                if col != conf.start_tail_position[0] and row != conf.start_tail_position[0]:
+                    self.game_grid[row][col]['transform'] = 0
+                    self.game_grid[row][col]['tail'] = None
+                    self.game_grid[row][col]['player'] = None
+                    self.game_grid[row][col]['active'] = False
+                    self.game_grid[row][col]['widget'].clear()
 
-    # make visible active player 'Add Tail' button
-    def make_add_tail_button_visible(self):
-        active_button = self.players[self.active_player]['add_tail_btn']
-        active_button.setStyleSheet(self.add_tail_btn_style[1])
-        active_button.setEnabled(True)
 
-        rest_button = self.players[self.rest_player]['add_tail_btn']
-        rest_button.setStyleSheet(self.add_tail_btn_style[0])
-        rest_button.setEnabled(False)
+
+    # make visible active player 'Add Tail' and other buttons
+    def make_player_button_visible(self):
+        add_new_active_button = self.players[self.active_player]['add_tail_btn']
+        add_new_active_button.setStyleSheet(self.add_tail_btn_style[1])
+        add_new_active_button.setEnabled(True)
+
+        reset_new_active_button = self.players[self.active_player]['reset_tail_btn']
+        reset_new_active_button.setStyleSheet(self.reset_tail_btn_style[1])
+        reset_new_active_button.setEnabled(True)
+
+        set_new_active_button = self.players[self.active_player]['set_tail_btn']
+        set_new_active_button.setStyleSheet(self.set_tail_btn_style[1])
+        set_new_active_button.setEnabled(True)
+
+        add_new_rest_button = self.players[self.rest_player]['add_tail_btn']
+        add_new_rest_button.setStyleSheet(self.add_tail_btn_style[0])
+        add_new_rest_button.setEnabled(False)
+
+        reset_new_rest_button = self.players[self.rest_player]['reset_tail_btn']
+        reset_new_rest_button.setStyleSheet(self.reset_tail_btn_style[0])
+        reset_new_rest_button.setEnabled(False)
+
+        set_new_rest_button = self.players[self.rest_player]['set_tail_btn']
+        set_new_rest_button.setStyleSheet(self.set_tail_btn_style[0])
+        set_new_rest_button.setEnabled(False)
 
 
     def add_new_tail_to_player1(self):
-        if len(self.tails) > 0:
+        if len(self.tails) > 0 and self.game_state == 'add new':
             tail = self.tails.pop(0)
+            self.active_tail = tail
             tail_name = tail['name']
             tail_widget = self.players['player1']['tail_widget']
             self.set_tail_to_container(tail_widget, tail_name, conf.player_tail_size)
+            self.game_state = 'reset'
+        elif len(self.tails) <= 0:
+            self.game_over = True
+            self.game_over_state()
+        else:
+            return
+
+    def add_new_tail_to_player2(self):
+        if len(self.tails) > 0 and self.game_state == 'add new':
+            tail = self.tails.pop(0)
+            self.active_tail = tail
+            tail_name = tail['name']
+            tail_widget = self.players['player2']['tail_widget']
+            self.set_tail_to_container(tail_widget, tail_name, conf.player_tail_size)
+            self.game_state = 'reset'
+        elif len(self.tails) <= 0:
+            self.game_over = True
+            self.game_over_state()
+        else:
+            return
+
+    def set_new_tail_to_player1(self):
+        
+        if self.game_state == 'reset':
+
+            # Set active desk widget
+            self.set_active_desk_id()
+            tail_check = self.check_tail_location()
+            if tail_check:
+                self.game_state == 'set'
+                self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['active'] = False
+                self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['tail'] = self.active_tail['number']
+                self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['player'] = self.active_player
+                self.next_turn()
+            else:
+                self.reset_new_tail_to_player1()
+
+    def set_new_tail_to_player2(self):
+
+        if self.game_state == 'reset':
+
+            # Set active desk widget
+            self.set_active_desk_id()
+            tail_check = self.check_tail_location()
+            if tail_check:
+                self.game_state == 'set'
+                self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['active'] = False
+                self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['tail'] = self.active_tail['number']
+                self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['player'] = self.active_player
+                self.next_turn()
+            else:
+                self.reset_new_tail_to_player2()
+
+    def check_tail_location(self):
+        print(self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['transform'])
+        self.transform_tail_sides()
+        row = self.active_desk_id[0]
+        col = self.active_desk_id[1]
+        top_tail_edge = self.active_tail['top']
+        bot_tail_edge = self.active_tail['bot']
+        right_tail_edge = self.active_tail['right']
+        left_tail_edge = self.active_tail['left']
+        none_sides = 0
+
+        # neighbor tails check
+        if row > 0:
+            if self.game_grid[row-1][col]['tail'] is not None:
+                tail_number = self.game_grid[row-1][col]['tail']
+                top_neighbor_tail_edge = self.tails_data.tails[int(tail_number)]['bot']
+                if top_neighbor_tail_edge != top_tail_edge:
+                    self.display_message("Top side is incorrect.")
+                    print(top_neighbor_tail_edge, top_tail_edge)
+                    return False
+            else:
+                none_sides += 1
+        if row < conf.game_grid_height-1:
+            if self.game_grid[row+1][col]['tail'] is not None:
+                tail_number = self.game_grid[row+1][col]['tail']
+                bot_neighbor_tail_edge = self.tails_data.tails[int(tail_number)]['top']
+                if bot_neighbor_tail_edge != bot_tail_edge:
+                    self.display_message("Bottom side is incorrect.")
+                    print(bot_neighbor_tail_edge, bot_tail_edge)
+                    return False
+            else:
+                none_sides += 1
+        if col > 0:
+            if self.game_grid[row][col-1]['tail'] is not None:
+                tail_number = self.game_grid[row][col-1]['tail']
+                left_neighbor_tail_edge = self.tails_data.tails[int(tail_number)]['right']
+                if left_neighbor_tail_edge != left_tail_edge:
+                    self.display_message("Left side is incorrect.")
+                    print(left_neighbor_tail_edge, left_tail_edge)
+                    return False
+            else:
+                none_sides += 1
+        if col < conf.game_grid_width-1:
+            if self.game_grid[row][col+1]['tail'] is not None:
+                tail_number = self.game_grid[row][col+1]['tail']
+                right_neighbor_tail_edge = self.tails_data.tails[int(tail_number)]['left']
+                if right_neighbor_tail_edge != right_tail_edge:
+                    self.display_message("Right side is incorrect.")
+                    print(right_neighbor_tail_edge, right_tail_edge)
+                    return False
+            else:
+                none_sides += 1
+        
+        if none_sides == 4:
+            self.display_message("Your tail does not have got a neighbor.")     
+            return False
+
+        print("Accept!")
+        return True
+
+    def transform_tail_sides(self):
+        rotate_number = self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['transform'] % 4
+
+        while (rotate_number > 0):
+            top_tail_edge = self.active_tail['top']
+
+            self.active_tail['top'] = self.active_tail['left']
+            self.active_tail['left'] = self.active_tail['bot']
+            self.active_tail['bot'] = self.active_tail['right']
+            self.active_tail['right'] = top_tail_edge
+
+            rotate_number-=1
+
+        self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['transform'] = 0
+
+    def set_original_tail_sides(self):
+        tail_number = self.active_tail['number']
+        self.active_tail = self.tails_data.tails[int(tail_number)]
+
+    def next_turn(self):
+
+        if len(self.tails) > 0:
+            self.active_player, self.rest_player = self.rest_player, self.active_player
+            self.game_state = 'add new'
+            self.make_player_button_visible()
         else:
             self.game_over = True
             self.game_over_state()
 
-    def add_new_tail_to_player2(self):
-        if len(self.tails) > 0:
-            tail = self.tails.pop(0)
-            tail_name = tail['name']
-            tail_widget = self.players['player2']['tail_widget']
+
+    def reset_new_tail_to_player1(self):
+
+        if self.game_state == 'reset':
+            self.set_active_desk_id()
+            self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['widget'].clear()
+            self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['active'] = False
+            self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['transform'] = 0
+            self.set_original_tail_sides()
+            
+            tail_widget = self.players['player1']['tail_widget']
+            tail_name = self.active_tail['name']
             self.set_tail_to_container(tail_widget, tail_name, conf.player_tail_size)
         else:
-            self.game_over = True
-            self.game_over_state()
+            return
+        
+
+    def reset_new_tail_to_player2(self):
+
+        if self.game_state == 'reset':
+            self.set_active_desk_id()
+            self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['widget'].clear()
+            self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['active'] = False
+            self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['transform'] = 0
+            self.set_original_tail_sides()
+            
+            tail_widget = self.players['player2']['tail_widget']
+            tail_name = self.active_tail['name']
+            self.set_tail_to_container(tail_widget, tail_name, conf.player_tail_size)
+        else:
+            return
+        
+    def set_active_desk_id(self):
+        for col in range(conf.game_grid_width):
+            for row in range(conf.game_grid_height):
+                if self.game_grid[row][col]['active'] == True:
+                    self.active_desk_id = [row, col]
+                    return
 
     def game_over_state(self):
         if self.game_over:
             self.start_game_btn.setEnabled(True)
-            mes_text = "Game is over!"
-            mes = QMessageBox()
-            mes.setWindowTitle('Message')
-            mes.setText(mes_text)
-            mes.exec()
+            self.display_message('Game is Over!')
+
+
+    def display_message(self, text):
+        mes = QMessageBox()
+        mes.setFont(QFont("Century", 10))
+        mes.setWindowTitle('Message')
+        mes.setMinimumSize(QtCore.QSize(200, 100))
+        mes.setText(text)
+        mes.exec()
             
 
 
