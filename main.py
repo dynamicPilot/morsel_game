@@ -17,10 +17,9 @@ class MainWindow(QMainWindow):
     def initUI(self):
 
         # set players data glodal dict
-        self.players = {'player1': {'color': 'violet', 'name': 'Player 1'}, 
-        'player2': {'color': 'orange', 'name': 'Player 2'}}
+        self.players = {'player1': {'color': 'blue', 'name': 'Player 1'}, 
+        'player2': {'color': 'red', 'name': 'Player 2'}}
         
-
         # set central widget
         self.c_widget = StartMenu(self.players)
         self.setCentralWidget(self.c_widget)

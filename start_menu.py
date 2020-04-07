@@ -53,14 +53,14 @@ class StartMenu(QWidget):
         grid.addWidget(player_2_label, 0, 1, QtCore.Qt.AlignCenter)
 
         player_1_icon_label = QLabel()
-        player_1_icon_pixmap = QPixmap(f'{self.path_to_icon}/{self.players["player1"]["color"]}_circle.png')
+        player_1_icon_pixmap = QPixmap(f'{self.path_to_icon}/{self.players["player1"]["color"]}_men.png')
         player_1_icon_pixmap = player_1_icon_pixmap.scaledToHeight(150)
         player_1_icon_label.setPixmap(player_1_icon_pixmap)
         player_1_icon_label.adjustSize()
         grid.addWidget(player_1_icon_label, 1, 0, QtCore.Qt.AlignCenter)
 
         player_2_icon_label = QLabel()
-        player_2_icon_pixmap = QPixmap(f'{self.path_to_icon}/{self.players["player2"]["color"]}_circle.png')
+        player_2_icon_pixmap = QPixmap(f'{self.path_to_icon}/{self.players["player2"]["color"]}_men.png')
         player_2_icon_pixmap = player_2_icon_pixmap.scaledToHeight(150)
         player_2_icon_label.setPixmap(player_2_icon_pixmap)
         player_2_icon_label.adjustSize()
