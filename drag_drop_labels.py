@@ -40,18 +40,35 @@ class DragCharLabel(QLabel):
     Customize QLabel for Drag label for player's chars display.
     Need: char_list_id, char_list.
     """
-    def __init__(self, parent, char_list_id, char_list):
+    def __init__(self, parent, char_list_id, char_list, game_state, player, active_player):
         super().__init__(parent)
         self.char_list_id = char_list_id
         self.char_list = char_list
+        self.game_state = game_state
+        self.player = player
+        self.active_player = active_player
 
     def mousePressEvent(self, event):
+        if self.active_player[0] != self.player:
+            event.ignore()
+            return
+        if not(self.game_state[0] == 'set tail' or self.game_state[0] == 'reset char'):
+            event.ignore()
+            return
         if event.button() == QtCore.Qt.LeftButton:
             self.drag_start_position = event.pos()
-
+        
     def mouseMoveEvent(self, event):
+        if self.active_player[0] != self.player:
+            event.ignore()
+            return
+        if not(self.game_state[0] == 'set tail' or self.game_state[0] == 'reset char'):
+            event.ignore()
+            return
         if not(event.buttons() & QtCore.Qt.LeftButton):
             return
+
+        print('active player ', self.active_player[0], ' player ', self.player, self.active_player[0] == self.player)
         
         drag = QDrag(self)
  
