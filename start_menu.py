@@ -23,19 +23,25 @@ class StartMenu(QWidget):
         
 
         # set QWidget style
-        self.setStyleSheet("background-color:white;")
+        self.setStyleSheet("background: transparent;")
+        #self.setStyleSheet("background-image:icons/red_men.png;")
+        #self.setStyleSheet("background-image: url(icons/wooden_back.png);")
 
         v_layout = QVBoxLayout()
 
-        header_label = QLabel('CARCASSONNE', self, margin = 10)
+        label_style = "color: '#f4ddc8';"
+
+        header_label = QLabel('MORSEL', self, margin = 10)
         header_label.setAlignment(QtCore.Qt.AlignCenter)
         header_label.setFont(QFont("Calisto MT", 20, QFont.Bold))
+        header_label.setStyleSheet(label_style)
         header_label.adjustSize()
         v_layout.addWidget(header_label)
 
         description_label = QLabel('Game for two players.\nBased on the original "Carcassonne" board game by Claus-Urgen Berde.\nNot for commertial use.', self, margin = 3)
         description_label.setAlignment(QtCore.Qt.AlignCenter)
         description_label.setFont(QFont("Lucida Calligraphy", 10)) #Lucida Calligraphy
+        description_label.setStyleSheet(label_style)
         description_label.adjustSize()
         v_layout.addWidget(description_label)
 
@@ -44,23 +50,25 @@ class StartMenu(QWidget):
 
         player_1_label = QLabel('Player 1', self, margin = 10)
         player_1_label.setFont(QFont("Century", 15, QFont.Bold))
+        player_1_label.setStyleSheet(label_style)
         player_1_label.adjustSize()
         grid.addWidget(player_1_label, 0, 0, QtCore.Qt.AlignCenter)
 
         player_2_label = QLabel('Player 2', self, margin = 10)
         player_2_label.setFont(QFont("Century", 15, QFont.Bold))
+        player_2_label.setStyleSheet(label_style)
         player_2_label.adjustSize()
         grid.addWidget(player_2_label, 0, 1, QtCore.Qt.AlignCenter)
 
         player_1_icon_label = QLabel()
-        player_1_icon_pixmap = QPixmap(f'{self.path_to_icon}/{self.players["player1"]["color"]}_men.png')
+        player_1_icon_pixmap = QPixmap(f'{self.path_to_icon}/{self.players["player1"]["color"]}_logo.png')
         player_1_icon_pixmap = player_1_icon_pixmap.scaledToHeight(150)
         player_1_icon_label.setPixmap(player_1_icon_pixmap)
         player_1_icon_label.adjustSize()
         grid.addWidget(player_1_icon_label, 1, 0, QtCore.Qt.AlignCenter)
 
         player_2_icon_label = QLabel()
-        player_2_icon_pixmap = QPixmap(f'{self.path_to_icon}/{self.players["player2"]["color"]}_men.png')
+        player_2_icon_pixmap = QPixmap(f'{self.path_to_icon}/{self.players["player2"]["color"]}_logo.png')
         player_2_icon_pixmap = player_2_icon_pixmap.scaledToHeight(150)
         player_2_icon_label.setPixmap(player_2_icon_pixmap)
         player_2_icon_label.adjustSize()
@@ -69,7 +77,7 @@ class StartMenu(QWidget):
         v_layout.addLayout(grid)
         v_layout.addStretch(1)
 
-        q_button_style = "QPushButton:pressed {background-color: #504e53; border-radius: 2px; color: 'white'} QPushButton {background-color: #534a63; border-radius: 2px; color: 'white'}"
+        q_button_style = "QPushButton:pressed {background-color: #958475; border-radius: 2px; color: '#f4ddc8'} QPushButton {background-color: #423b35; border-radius: 2px; color: '#f4ddc8'}"
 
         h_box = QHBoxLayout()
         h_box.addStretch(1)

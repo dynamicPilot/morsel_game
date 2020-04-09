@@ -8,10 +8,11 @@ import config as conf
 
 from tail_preparing import TailsData
 from drag_drop_labels import DragLabel, DropLabel, DragCharLabel
+from game_over import GameOver
 
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QInputDialog, QGridLayout, QSizePolicy, QApplication, QScrollArea, QMessageBox)
-from PyQt5.QtGui import QFont, QPixmap
+from PyQt5.QtGui import QFont, QPixmap, QIcon, QPalette, QBrush
 
 class NewGame(QWidget):
     def __init__(self, players):
@@ -20,12 +21,22 @@ class NewGame(QWidget):
         self.initUI()
         
     def initUI(self):
-
-        #self.showFullScreen()
-
         # set path variables
         self.path_to_icon = conf.icons_folder_path
         self.path_to_tail = conf.tail_folder_path
+        self.notes = conf.notes
+
+        #set window params
+        self.setGeometry(25, 40, 1900, 1000)
+        self.setWindowTitle('Morsel')
+        self.setWindowIcon(QIcon(f'{self.path_to_icon}/blue_logo.png'))
+
+        #self.showFullScreen()
+        pixmap = QPixmap(f'{self.path_to_icon}/wooden_back0.png')
+        pixmap = pixmap.scaled(self.size())
+        palette = QPalette()
+        palette.setBrush(QPalette.Background, QBrush(pixmap))
+        self.setPalette(palette)
 
         self.tails_data = TailsData()
         self.tails = self.tails_data.tails
@@ -36,8 +47,7 @@ class NewGame(QWidget):
         self.rest_player = None # passive player
         self.active_player_link_for_labels = [self.active_player]
         
-        self.game_over = None
-        self.game_state = [None] # "add new tail" "reset tail" "set tail" "reset char" "set char" "set tail and char"
+        self.game_state = ['start'] # "start" "add new tail" "reset tail" "set tail" "reset char" "set char" "set tail and char" "end"
 
         self.active_tail = None
         self.active_desk_id = None
@@ -61,27 +71,17 @@ class NewGame(QWidget):
         self.char_list_id = None
 
         # set global style sheets for buttons
-        self.add_tail_btn_style = ["QPushButton {background: transparent; border: none; color: 'white'}", "QPushButton:pressed {background-color: #181e1a; border-radius: 2px; color: 'white'} QPushButton {background-color: #1b3522; border-radius: 2px; color: 'white'}", "QPushButton {background-color: 'white'; border-radius: 2px; border-color: 'black'; color: #8e908e}"]
-        self.reset_tail_btn_style = ["QPushButton {background: transparent; border: none; color: 'white'}", "QPushButton:pressed {background-color: #9f7224; border-radius: 2px; color: 'white'} QPushButton {background-color: #9f7224; border-radius: 2px; color: 'white'}"]
-        self.set_tail_btn_style = ["QPushButton {background: transparent; border: none; color: 'white'}", "QPushButton:pressed {background-color: #2f395a; border-radius: 2px; color: 'white'} QPushButton {background-color: #2f395a; border-radius: 2px; color: 'white'}"]
-        
-
-        # set QWidget style
-        self.setStyleSheet("background-color:white;")
-
-        #set window params
-        self.setGeometry(25, 40, 1900, 1000)
-        self.setWindowTitle('Carcassonne')
+        self.add_tail_btn_style = ["QPushButton {background: transparent; border: none; color: '#f4f4f4'}", "QPushButton:pressed {background-color: #181e1a; border-radius: 2px; color: 'white'} QPushButton {background-color: #1b3522; border-radius: 2px; color: 'white'}", "QPushButton {background-color: '#f4f4f4'; border-radius: 2px; border-color: '#5b5c5b'; color: #777474}"]
+        self.reset_tail_btn_style = ["QPushButton {background: transparent; border: none; color: '#f4f4f4'}", "QPushButton:pressed {background-color: #9f7224; border-radius: 2px; color: 'white'} QPushButton {background-color: #9f7224; border-radius: 2px; color: 'white'}"]
+        self.set_tail_btn_style = ["QPushButton {background: transparent; border: none; color: '#f4f4f4'}", "QPushButton:pressed {background-color: #2f395a; border-radius: 2px; color: 'white'} QPushButton {background-color: #2f395a; border-radius: 2px; color: 'white'}"]
 
         v_layout = QVBoxLayout()
 
-        #self.quit_btn = QPushButton('Quit')
-        #self.quit_btn.clicked.connect(QtCore.QCoreApplication.quit)
-        #v_layout.addWidget(self.quit_btn)
 
-        header_label = QLabel('CARCASSONNE', self, margin = 10)
+        header_label = QLabel('MORSEL', self, margin = 12)
+        header_label.setStyleSheet("QLabel {background: transparent; border: none; color:'#f4ddc8'}")
         header_label.setAlignment(QtCore.Qt.AlignCenter)
-        header_label.setFont(QFont("Calisto MT", 30, QFont.Bold))
+        header_label.setFont(QFont("Calisto MT", 32, QFont.Bold))
         header_label.adjustSize()
         v_layout.addWidget(header_label)
         
@@ -96,8 +96,6 @@ class NewGame(QWidget):
         scroll_area.setAlignment(QtCore.Qt.AlignCenter)
         scroll_area.setWidget(self.game_desk)
 
-        #scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
-        #scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
         h_box.addWidget(scroll_area)
 
         #h_box.addStretch(1)
@@ -109,36 +107,56 @@ class NewGame(QWidget):
         v_layout.addStretch(1)
 
         btn_h_box = QHBoxLayout()
+        self.player_1_notes_label = QLabel()
+        note_text = self.notes[self.game_state[0]][0]
+        self.player_1_notes_label.setText(note_text)
+        self.player_1_notes_label.setFont(QFont("Century", 12, QFont.Bold))
+        self.player_1_notes_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.player_1_notes_label.setStyleSheet("background: transparent; color: '#f4ddc8';")
+        self.player_1_notes_label.setMinimumSize(QtCore.QSize(conf.notes_label_width, conf.notes_label_height))
+        self.player_1_notes_label.setMaximumSize(QtCore.QSize(conf.notes_label_width, conf.notes_label_height))
+        btn_h_box.addWidget(self.player_1_notes_label)
+        self.players['player1']['note_widget'] = self.player_1_notes_label
+
         btn_h_box.addStretch(1)
 
-        start_button_style = "QPushButton:pressed {background-color: #504e53; border-radius: 2px; color: 'white'} QPushButton {background-color: #534a63; border-radius: 2px; color: 'white'}"
+        start_end_button_style = "QPushButton:pressed {background-color: #958475; border-radius: 2px; color: '#f4ddc8'} QPushButton {background-color: #423b35; border-radius: 2px; color: '#f4ddc8'}"
 
         self.start_game_btn = QPushButton('Start Game', self)
         self.start_game_btn.setFont(QFont("Century", 15, QFont.Bold))
-        self.start_game_btn.setStyleSheet(start_button_style)
+        self.start_game_btn.setStyleSheet(start_end_button_style)
         self.start_game_btn.setMinimumSize(QtCore.QSize(150, 50))
         btn_h_box.addWidget(self.start_game_btn)
         self.start_game_btn.clicked.connect(self.start_game)
 
-        end_button_style = "QPushButton:pressed {background-color: #504e53; border-radius: 2px; color: 'white'} QPushButton {background-color: #534a63; border-radius: 2px; color: 'white'}"
-
         self.end_game_btn = QPushButton('End Game', self)
         self.end_game_btn.setFont(QFont("Century", 15, QFont.Bold))
-        self.end_game_btn.setStyleSheet(end_button_style)
+        self.end_game_btn.setStyleSheet(start_end_button_style)
         self.end_game_btn.setMinimumSize(QtCore.QSize(150, 50))
         btn_h_box.addWidget(self.end_game_btn)
         self.end_game_btn.clicked.connect(QtCore.QCoreApplication.quit)
 
         btn_h_box.addStretch(1)
-        
+        self.player_2_notes_label = QLabel()
+        note_text = self.notes[self.game_state[0]][1]
+        self.player_2_notes_label.setText(note_text)
+        self.player_2_notes_label.setFont(QFont("Century", 12, QFont.Bold))
+        self.player_2_notes_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.player_2_notes_label.setStyleSheet("background: transparent; color:'#f4ddc8';")
+        self.player_2_notes_label.setMinimumSize(QtCore.QSize(conf.notes_label_width, conf.notes_label_height))
+        self.player_2_notes_label.setMaximumSize(QtCore.QSize(conf.notes_label_width, conf.notes_label_height))
+        btn_h_box.addWidget(self.player_2_notes_label)
+        self.players['player2']['note_widget'] = self.player_2_notes_label
+
         v_layout.addLayout(btn_h_box)
 
         self.setLayout(v_layout)
-        
+
     def create_game_desk(self):
         self.game_desk = QWidget()
+        self.game_desk.setProperty('class', 'desk')
         self.game_desk.setContentsMargins(5, 5, 5, 5)
-        self.game_desk.setStyleSheet("background-color:white; border-style: outset; border-color:'black'; border-width: 2px; border-radius: 5px;")
+        self.game_desk.setStyleSheet(".desk {background-color: white; border-style: outset; border-color:'#423b35'; border-width: 2px; border-radius: 5px;}")
         desk_width = conf.tail_size*conf.game_grid_width
         desk_height = conf.tail_size*conf.game_grid_height
         self.game_desk.setMinimumSize(QtCore.QSize(desk_width, desk_height))
@@ -190,7 +208,9 @@ class NewGame(QWidget):
 
     def create_player_desk(self, player_key):
         player_desk = QWidget()
-        player_desk.setStyleSheet("background-color:white; border-style: outset; border-color:'black'; border-width: 2px; border-radius: 5px;")
+        player_desk.setObjectName('player_desk')
+        player_desk.setStyleSheet("QWidget#player_desk {background-color: '#f4f4f4'; border-style: outset; border-color:'#423b35'; border-width: 2px; border-radius: 5px;}")
+
         player_desk.setMinimumSize(QtCore.QSize(250, 800))
         player_desk.setMaximumSize(QtCore.QSize(250, 950))
         player_desk.setContentsMargins(5, 5, 5, 5)
@@ -205,8 +225,8 @@ class NewGame(QWidget):
         v_box.addWidget(player_label, alignment=QtCore.Qt.AlignCenter)
         
         player_icon_label = QLabel(self)
-        player_icon_pixmap = QPixmap(f'{self.path_to_icon}/{self.players[player_key]["color"]}_men.png')
-        player_icon_pixmap = player_icon_pixmap.scaledToHeight(50)
+        player_icon_pixmap = QPixmap(f'{self.path_to_icon}/{self.players[player_key]["color"]}_logo.png')
+        player_icon_pixmap = player_icon_pixmap.scaledToHeight(70)
         player_icon_label.setPixmap(player_icon_pixmap)
         player_icon_label.setAlignment(QtCore.Qt.AlignCenter)
         player_icon_label.adjustSize()
@@ -214,7 +234,7 @@ class NewGame(QWidget):
 
         score_label = QLabel('0', self, margin = 7)
         score_label.setAlignment(QtCore.Qt.AlignCenter)
-        score_label.setStyleSheet("background-color:white; border-style: outset; border-color:'black'; border-width: 2px; border-radius: 5px;")
+        score_label.setStyleSheet("background-color:white; border-style: outset; border-color:'#302f2f'; border-width: 2px; border-radius: 5px;")
         score_label.setFont(QFont("Century", 12, QFont.Bold))
         score_label.setMinimumSize(QtCore.QSize(100, 50))
         score_label.setMaximumSize(QtCore.QSize(100, 50))
@@ -251,14 +271,10 @@ class NewGame(QWidget):
         set_tail_btn.setMinimumSize(QtCore.QSize(100, 50))
         v_box.addWidget(set_tail_btn, alignment=QtCore.Qt.AlignCenter)
 
-        if player_key == "player1":
-            add_tail_btn.clicked.connect(self.add_new_tail_to_player1)
-            reset_tail_btn.clicked.connect(self.reset_new_tail_to_player1)
-            set_tail_btn.clicked.connect(self.set_new_tail_to_player1)
-        else:
-            add_tail_btn.clicked.connect(self.add_new_tail_to_player2)
-            reset_tail_btn.clicked.connect(self.reset_new_tail_to_player2)
-            set_tail_btn.clicked.connect(self.set_new_tail_to_player2)
+        add_tail_btn.clicked.connect(self.add_new_tail_to_player)
+        reset_tail_btn.clicked.connect(self.reset_new_tail_to_player)
+        set_tail_btn.clicked.connect(self.set_new_tail_to_player)
+
         v_box.addStretch(1)
 
         grid = QGridLayout()
@@ -328,7 +344,6 @@ class NewGame(QWidget):
         else:
             char_container_label = DragCharLabel(self, self.char_list_id, self.player2_char_list, self.game_state, player_key, self.active_player_link_for_labels)
 
-        #tail_container_label.setStyleSheet("background-color: #ebebeb; border-style: outset; border-color: #5b5c5b; border-width: 1px; border-radius: 2px;")
         char_container_label.setAlignment(QtCore.Qt.AlignCenter)
         char_container_label.setMinimumSize(QtCore.QSize(conf.char_picture_size, conf.char_picture_size))
         char_container_label.setMaximumSize(QtCore.QSize(conf.char_picture_size, conf.char_picture_size))
@@ -336,6 +351,7 @@ class NewGame(QWidget):
         char_pixmap = char_pixmap.scaledToHeight(conf.char_picture_size)
         char_container_label.setPixmap(char_pixmap)
         char_container_label.setAlignment(QtCore.Qt.AlignCenter)
+        char_container_label.setStyleSheet("background-color: #ebebeb; border-style: outset; border-color: #5b5c5b; border-width: 1px; border-radius: 2px;")
         return char_container_label
 
     def start_game(self):
@@ -347,12 +363,14 @@ class NewGame(QWidget):
         self.active_player = players_list[0]
         self.rest_player = players_list[1]
         self.active_player_link_for_labels[0] = self.active_player
-        self.game_over = False
         self.game_state[0] = 'add new tail'
 
         self.make_player_button_visible()
         self.players[self.active_player]['reset_tail_btn'].setEnabled(False) #disable reset tail button
         self.players[self.active_player]['set_tail_btn'].setEnabled(False) #disable set tail button
+
+        self.players[self.active_player]['note_widget'].setText(self.notes[self.game_state[0]][0])
+        self.players[self.rest_player]['note_widget'].setText(self.notes[self.game_state[0]][1][random.randint(0, len(self.notes[self.game_state[0]][1]))])
         
         self.start_game_btn.setEnabled(False)
 
@@ -387,15 +405,19 @@ class NewGame(QWidget):
             self.make_player_button_visible()
             self.players[self.active_player]['reset_tail_btn'].setEnabled(False) # disable reset tail button
             self.players[self.active_player]['set_tail_btn'].setEnabled(False) # disable set tail button
+
+            self.players[self.active_player]['note_widget'].setText(self.notes[self.game_state[0]][0])
+            self.players[self.rest_player]['note_widget'].setText(self.notes[self.game_state[0]][1][random.randint(0, len(self.notes[self.game_state[0]][1]))])
         else:
-            self.game_over = True
             self.game_over_state()
 
     def game_over_state(self):
-        if self.game_over:
-            self.start_game_btn.setEnabled(True)
-            self.count_scores_and_finish_chains(True)
-            self.display_message('Game is Over!')
+        self.start_game_btn.setEnabled(True)
+        self.count_scores_and_finish_chains(True)
+        self.players[self.active_player]['note_widget'].setText(self.notes[self.game_state[0]][0])
+        self.players[self.rest_player]['note_widget'].setText(self.notes[self.game_state[0]][1])
+        self.game_over_window = GameOver(self.players)
+        self.game_over_window.show()
 
     def erase_game_flow_control_variables(self):
         self.active_desk_id = None
@@ -483,12 +505,12 @@ class NewGame(QWidget):
         set_char_rest_button.setStyleSheet(self.set_tail_btn_style[0])
         set_char_rest_button.setEnabled(False)
 
-    def add_new_tail_to_player1(self):
+    def add_new_tail_to_player(self):
         if len(self.tails) > 0 and self.game_state[0] == 'add new tail':
             tail = self.tails.pop(0)
             self.active_tail = tail
             tail_name = tail['name']
-            tail_widget = self.players['player1']['tail_widget']
+            tail_widget = self.players[self.active_player]['tail_widget']
             self.set_tail_to_container(tail_widget, tail_name, conf.player_tail_size)
             self.game_state[0] = 'reset tail'
             self.players[self.active_player]['add_tail_btn'].setEnabled(False)
@@ -496,32 +518,14 @@ class NewGame(QWidget):
 
             self.players[self.active_player]['reset_tail_btn'].setEnabled(True) #enable reset tail button
             self.players[self.active_player]['set_tail_btn'].setEnabled(True) #enable set tail button
+
+            self.players[self.active_player]['note_widget'].setText(self.notes[self.game_state[0]][0])
         elif len(self.tails) <= 0:
-            self.game_over = True
             self.game_over_state()
         else:
             return
 
-    def add_new_tail_to_player2(self):
-        if len(self.tails) > 0 and self.game_state[0] == 'add new tail':
-            tail = self.tails.pop(0)
-            self.active_tail = tail
-            tail_name = tail['name']
-            tail_widget = self.players['player2']['tail_widget']
-            self.set_tail_to_container(tail_widget, tail_name, conf.player_tail_size)
-            self.game_state[0] = 'reset tail'
-            self.players[self.active_player]['add_tail_btn'].setEnabled(False)
-            self.players[self.active_player]['add_tail_btn'].setStyleSheet(self.add_tail_btn_style[2])
-
-            self.players[self.active_player]['reset_tail_btn'].setEnabled(True) #enable reset tail button
-            self.players[self.active_player]['set_tail_btn'].setEnabled(True) #enable set tail button
-        elif len(self.tails) <= 0:
-            self.game_over = True
-            self.game_over_state()
-        else:
-            return
-
-    def reset_new_tail_to_player1(self):
+    def reset_new_tail_to_player(self):
 
         if self.game_state[0] == 'reset tail':
             self.set_active_desk_id()
@@ -535,35 +539,14 @@ class NewGame(QWidget):
                 except TypeError:
                     pass
              
-            tail_widget = self.players['player1']['tail_widget']
-            print(self.active_tail['name'])
-            tail_name = self.active_tail['name']
-            self.set_tail_to_container(tail_widget, tail_name, conf.player_tail_size)
-        else:
-            return
-        
-    def reset_new_tail_to_player2(self):
-
-        if self.game_state[0] == 'reset tail':
-            self.set_active_desk_id()
-            if self.active_desk_id is not None:
-                try:
-                    self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['widget'].clear()
-                    self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['widget'].pix_state = "empty"
-                    self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['active'] = False
-                    self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['transform'] = 0
-                    self.set_original_tail_sides()
-                except TypeError:
-                    pass
-
-            tail_widget = self.players['player2']['tail_widget']
+            tail_widget = self.players[self.active_player]['tail_widget']
             print(self.active_tail['name'])
             tail_name = self.active_tail['name']
             self.set_tail_to_container(tail_widget, tail_name, conf.player_tail_size)
         else:
             return
 
-    def set_new_tail_to_player1(self):
+    def set_new_tail_to_player(self):
         
         if self.game_state[0] == 'reset tail':
 
@@ -581,32 +564,9 @@ class NewGame(QWidget):
                 self.make_char_button_visible()
                 self.make_active_player_tail_button_not_active()
                 self.make_active_player_tail_button_not_visible()
-                
-                #self.next_turn()
+                self.players[self.active_player]['note_widget'].setText(self.notes[self.game_state[0]][0])
             else:
-                self.reset_new_tail_to_player1()
-
-    def set_new_tail_to_player2(self):
-
-        if self.game_state[0] == 'reset tail':
-
-            # Set active desk widget
-            self.set_active_desk_id()
-            tail_check = self.check_tail_location()
-            if tail_check:
-                self.game_state[0] = 'set tail'
-                self.set_active_tail_chains()
-                #self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['active'] = False
-                self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['tail'] = self.active_tail['number']
-                self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['player'] = self.active_player
-                self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['widget'].pix_state = "char"
-
-                self.make_char_button_visible()
-                self.make_active_player_tail_button_not_active()
-                self.make_active_player_tail_button_not_visible()
-                #self.next_turn()
-            else:
-                self.reset_new_tail_to_player2()
+                self.reset_new_tail_to_player()
 
     def skip_char_to_player(self):
         if self.game_state[0] == 'reset char':
@@ -623,15 +583,18 @@ class NewGame(QWidget):
         if self.game_state[0] == 'reset char':
             self.set_active_desk_id()
             self.set_active_char_id()
-            self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['widget'].reset_char()
-            self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['char_side'] = None
+            try:
+                self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['widget'].reset_char()
+                self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['char_side'] = None
 
-            char_widget = self.players_char_lists[self.active_player][self.active_char_id]['widget']
-            char_pixmap = QPixmap(f'{self.path_to_icon}/{self.players[self.active_player]["color"]}_men.png')
-            char_pixmap = char_pixmap.scaledToHeight(conf.char_picture_size)
-            char_widget.setPixmap(char_pixmap)
-            char_widget.setAlignment(QtCore.Qt.AlignCenter)
-            self.players_char_lists[self.active_player][self.active_char_id]['active'] = False
+                char_widget = self.players_char_lists[self.active_player][self.active_char_id]['widget']
+                char_pixmap = QPixmap(f'{self.path_to_icon}/{self.players[self.active_player]["color"]}_men.png')
+                char_pixmap = char_pixmap.scaledToHeight(conf.char_picture_size)
+                char_widget.setPixmap(char_pixmap)
+                char_widget.setAlignment(QtCore.Qt.AlignCenter)
+                self.players_char_lists[self.active_player][self.active_char_id]['active'] = False
+            except TypeError:
+                return
 
     def set_char_to_player(self):
         print('start set char')
@@ -1347,5 +1310,8 @@ class NewGame(QWidget):
         mes.setFont(QFont("Century", 10))
         mes.setWindowTitle('Message')
         mes.setMinimumSize(QtCore.QSize(200, 100))
+        pixmap = QPixmap(f'{self.path_to_icon}/warning.png')
+        pixmap = pixmap.scaledToHeight(70)
+        mes.setIconPixmap(pixmap)
         mes.setText(text)
         mes.exec()
