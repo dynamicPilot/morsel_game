@@ -22,7 +22,7 @@ class GameOver(QWidget):
         self.set_winner_player()
         
         # set QWidget style
-        self.setGeometry(300, 300, 500, 500)
+        self.setGeometry(850, 300, 500, 500)
         self.setWindowTitle('Morsel')
         self.setWindowIcon(QIcon(f'{self.path_to_icon}/blue_logo.png'))
 
@@ -47,6 +47,7 @@ class GameOver(QWidget):
             winner_icon_label = QLabel()
             winner_1_icon_pixmap = QPixmap(f'{self.path_to_icon}/{self.players[self.winner[0]]["color"]}_logo.png')
             winner_1_icon_pixmap = winner_1_icon_pixmap.scaledToHeight(150)
+            winner_icon_label.setAlignment(QtCore.Qt.AlignCenter)
             winner_icon_label.setPixmap(winner_1_icon_pixmap)
             winner_icon_label.adjustSize()
             v_layout.addWidget(winner_icon_label)
@@ -96,13 +97,13 @@ class GameOver(QWidget):
         player_2_label.adjustSize()
         grid.addWidget(player_2_label, 0, 1, QtCore.Qt.AlignCenter)
 
-        player_1_score_label = QLabel(f'{self.players["player1"]["score"]}', self, margin = 10)
+        player_1_score_label = QLabel(f'{int(self.players["player1"]["score"])}', self, margin = 10)
         player_1_score_label.setFont(QFont("Century", 14, QFont.Bold))
         player_1_score_label.setStyleSheet(label_style)
         player_1_score_label.adjustSize()
         grid.addWidget(player_1_score_label, 1, 0, QtCore.Qt.AlignCenter)
 
-        player_2_score_label = QLabel(f'{self.players["player2"]["score"]}', self, margin = 10)
+        player_2_score_label = QLabel(f'{int(self.players["player2"]["score"])}', self, margin = 10)
         player_2_score_label.setFont(QFont("Century", 14, QFont.Bold))
         player_2_score_label.setStyleSheet(label_style)
         player_2_score_label.adjustSize()
@@ -115,9 +116,9 @@ class GameOver(QWidget):
         
             
     def set_winner_player(self):
-        if self.players['player1']['score'] > self.players['player1']['score']:
+        if int(self.players['player1']['score']) > int(self.players['player2']['score']):
             self.winner.append('player1')
-        elif self.players['player1']['score'] < self.players['player1']['score']:
+        elif int(self.players['player1']['score']) < int(self.players['player2']['score']):
             self.winner.append('player2')
         else:
             self.winner.append('player1')

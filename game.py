@@ -134,7 +134,8 @@ class NewGame(QWidget):
         self.end_game_btn.setStyleSheet(start_end_button_style)
         self.end_game_btn.setMinimumSize(QtCore.QSize(150, 50))
         btn_h_box.addWidget(self.end_game_btn)
-        self.end_game_btn.clicked.connect(QtCore.QCoreApplication.quit)
+        self.end_game_btn.clicked.connect(self.close)
+        #self.end_game_btn.clicked.connect(QtCore.QCoreApplication.quit)
 
         btn_h_box.addStretch(1)
         self.player_2_notes_label = QLabel()
@@ -370,7 +371,7 @@ class NewGame(QWidget):
         self.players[self.active_player]['set_tail_btn'].setEnabled(False) #disable set tail button
 
         self.players[self.active_player]['note_widget'].setText(self.notes[self.game_state[0]][0])
-        self.players[self.rest_player]['note_widget'].setText(self.notes[self.game_state[0]][1][random.randint(0, len(self.notes[self.game_state[0]][1]))])
+        self.players[self.rest_player]['note_widget'].setText(self.notes[self.game_state[0]][1][random.randint(0, len(self.notes[self.game_state[0]][1])-1)])
         
         self.start_game_btn.setEnabled(False)
 
@@ -407,17 +408,19 @@ class NewGame(QWidget):
             self.players[self.active_player]['set_tail_btn'].setEnabled(False) # disable set tail button
 
             self.players[self.active_player]['note_widget'].setText(self.notes[self.game_state[0]][0])
-            self.players[self.rest_player]['note_widget'].setText(self.notes[self.game_state[0]][1][random.randint(0, len(self.notes[self.game_state[0]][1]))])
+            self.players[self.rest_player]['note_widget'].setText(self.notes[self.game_state[0]][1][random.randint(0, len(self.notes[self.game_state[0]][1])-1)])
         else:
             self.game_over_state()
 
     def game_over_state(self):
+        self.game_state[0] = 'game over'
         self.start_game_btn.setEnabled(True)
         self.count_scores_and_finish_chains(True)
         self.players[self.active_player]['note_widget'].setText(self.notes[self.game_state[0]][0])
         self.players[self.rest_player]['note_widget'].setText(self.notes[self.game_state[0]][1])
         self.game_over_window = GameOver(self.players)
         self.game_over_window.show()
+        self.close()
 
     def erase_game_flow_control_variables(self):
         self.active_desk_id = None
@@ -641,8 +644,15 @@ class NewGame(QWidget):
 
         if final:
             for chain in self.cities:
-                if chain['finished'] and not chain['closed']:
-                    chain['score'] = chain['score']/2
+                if not chain['closed'] and chain['active']:
+                    chain['score'] = int(chain['score']/2)
+                    chain['finished'] = True
+            for chain in self.roads:
+                if not chain['closed'] and chain['active']:
+                    chain['finished'] = True
+            for chain in self.monasteries :
+                if not chain['closed'] and chain['active']:
+                    chain['finished'] = True
 
         for chain in self.roads:
             if chain['finished'] and not chain['closed']:
@@ -659,6 +669,7 @@ class NewGame(QWidget):
                             player2_count += 1
                     
                     if player1_count == player2_count:
+                        print('two players on road ', chain)
                         self.players['player1']['score'] += chain['score']/2
                         self.players['player2']['score'] += chain['score']/2
                     elif player1_count > player2_count:
@@ -701,8 +712,8 @@ class NewGame(QWidget):
                 self.return_char_from_finish_chain(chain['char_ids'])
                 chain['closed'] = True
 
-        self.players['player1']['score_label'].setText(str(self.players['player1']['score']))
-        self.players['player2']['score_label'].setText(str(self.players['player2']['score']))
+        self.players['player1']['score_label'].setText(str(int(self.players['player1']['score'])))
+        self.players['player2']['score_label'].setText(str(int(self.players['player2']['score'])))
 
     def return_char_from_finish_chain(self, char_list):
         for char_item in char_list:
@@ -748,18 +759,16 @@ class NewGame(QWidget):
             if chain['active'] and not chain['finished']:
                 lost_points = [chain['path'][-1]]
                 visited_points = []
-                end_points = chain['path'][-1:]
+                end_points = chain['path'][:-1]
                 break_mark = False
-                counter = 0
 
-                while len(lost_points) > 0 and not break_mark and len(end_points) > 0 and counter <5:
-                    counter +=1
+                while len(lost_points) > 0 and not break_mark and len(end_points) > 0:
 
                     current_point = lost_points.pop(0)
                     visited_points.append(current_point)
                     current_point_number = current_point[1]
                     current_point_side = current_point[0]
-                    print('visited ', visited_points)
+                    print('visited ', visited_points, 'end_points ', end_points, 'lost points ', lost_points)
                     
                     print(f'current point number is {current_point_number}, current point side is {current_point_side}. Tail city is ', self.tails_data.tails[current_point_number]['city'])
 
@@ -772,27 +781,34 @@ class NewGame(QWidget):
                                     print('add lost point ', can_be_end_point)
                         print('finish look at sides of current point')
                         print('remove ', current_point)
-                        current_point = lost_points.pop()
-                        visited_points.append(current_point)
-                        current_point_side = current_point[0]
-                        print('visited ', visited_points) 
-                    row, col = self.get_tail_row_col(current_point_number)
-                    n_tail = self.get_tail_neighbors(row, col)[current_point_side]
-
-                    print(n_tail)
-
-                    if n_tail is None:
-                        print('no neighbor')
-                        break_mark = True
-                    else:
-                        can_be_end_point = [self.opposite_side_dict[current_point_side], n_tail['tail_number']]
-                        if can_be_end_point in end_points: # current point is an end point
-                            end_points.remove(can_be_end_point)
+                        if len(lost_points) > 0:
+                            current_point = lost_points.pop()
+                            visited_points.append(current_point)
+                            current_point_side = current_point[0]
+                            print('visited ', visited_points)
                         else:
-                            lost_points.append(can_be_end_point)
-                            print('add lost point after n_tail', can_be_end_point)
+                            break_mark = True
 
-                    print('visited end', visited_points)
+                    if not break_mark:
+
+                        row, col = self.get_tail_row_col(current_point_number)
+                        n_tail = self.get_tail_neighbors(row, col)[current_point_side]
+
+                        print(n_tail)
+
+                        if n_tail is None:
+                            print('no neighbor')
+                            break_mark = True
+                        else:
+                            can_be_end_point = [self.opposite_side_dict[current_point_side], n_tail['tail_number']]
+                            if can_be_end_point in end_points: # current point is an end point
+                                print('remove end point ', can_be_end_point)
+                                end_points.remove(can_be_end_point)
+                            else:
+                                lost_points.append(can_be_end_point)
+                                print('add lost point after n_tail', can_be_end_point)
+
+                        print('visited end', visited_points)
 
                 if len(end_points) == 0 and len(lost_points) == 0:
                     chain['finished'] = True
@@ -1236,11 +1252,16 @@ class NewGame(QWidget):
         return return_list
 
     def add_neighbor_chain_to_chain(self, n_c_index, c_index, p_index, n_except_point, chain_type):
+        print('neighbor chain ', self.cities[n_c_index], 'n excepr point ', n_except_point)
+        print('self chain ', self.cities[c_index])
+        first = False
         if chain_type == 'c':
             result_list = self.cities[c_index]['path'][:p_index]
             for point in self.cities[n_c_index]['path']:
-                if point != n_except_point:
+                if point != n_except_point or first:
                     result_list.append(point)
+                if point == n_except_point:
+                    first = True
 
             result_list.extend(self.cities[c_index]['path'][p_index+1:])
             self.cities[c_index]['path'] = result_list
@@ -1250,7 +1271,7 @@ class NewGame(QWidget):
         
             self.cities[c_index]['player'].extend(self.cities[n_c_index]['player'])
             self.cities[c_index]['char_ids'].extend(self.cities[n_c_index]['char_ids'])
-            self.cities[c_index]['score'] += self.cities[n_c_index]['player']
+            self.cities[c_index]['score'] += self.cities[n_c_index]['score']
 
             print('add_neighbor_chain_to_chain_city', self.cities[c_index]['path'])
 
@@ -1259,8 +1280,10 @@ class NewGame(QWidget):
         if chain_type == 'r':
             result_list = self.roads[c_index]['path'][:p_index]
             for point in self.roads[n_c_index]['path']:
-                if point != n_except_point:
+                if point != n_except_point or first:
                     result_list.append(point)
+                if point == n_except_point:
+                    first = True
 
             result_list.extend(self.roads[c_index]['path'][p_index+1:])
             self.roads[c_index]['path'] = result_list
