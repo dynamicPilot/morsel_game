@@ -63,7 +63,7 @@ class TailsData:
             prev_side = tail_dictionary[check_side_loop_list[i-1]]
             current_side = tail_dictionary[check_side_loop_list[i]]
         
-            if current_side == prev_side == "c":
+            if current_side == prev_side == "c" and tail_dictionary['city']:
                 tail_dictionary['city'] = [check_side_loop_list[i], check_side_loop_list[i-1]]
             if current_side == prev_side == "r" and not tail_dictionary['end_point']:
                 tail_dictionary['road'] = [check_side_loop_list[i-1], check_side_loop_list[i]]

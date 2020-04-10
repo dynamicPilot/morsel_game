@@ -825,6 +825,14 @@ class NewGame(QWidget):
                     return row, col
         
     def set_active_char_to_available_chains(self):
+        print('start set char final')
+
+        print('availiable chains:')
+        print('monastery ', self.active_tail_available_monastery_chains)
+        print('city ', self.active_tail_available_city_chains)
+        print('road ', self.active_tail_available_road_chains)
+
+        print('set char to available chains, char side: ',  self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['char_side'], self.active_tail[self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['char_side']])
         char_side = self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['char_side']
         if char_side == 'center':
             c_index = self.active_tail_available_monastery_chains[0]
@@ -898,7 +906,57 @@ class NewGame(QWidget):
 
         return True
 
+    def filter_available_chains_to_char_side(self, char_side, chain_type):
+        element_to_remove = []
+        check_counter = 0
+        if chain_type == 'r':
+            check_points = [[char_side, self.active_tail['number']]]
+            for road in self.active_tail['road']:
+                if char_side in road:
+                    print(road)
+                    for another_char_side in road:
+                        if another_char_side != char_side:
+                            check_points.append([another_char_side, self.active_tail['number']])
+
+            print('filter point to check ', check_points, ' in ', self.active_tail_available_road_chains)
+
+            for chain_index in self.active_tail_available_road_chains:
+                chain = self.roads[chain_index]
+                for check_point in check_points:
+                    if check_point in chain['path']:
+                        check_counter += 1
+                if check_counter == 0:
+                    element_to_remove.append(chain_index)
+
+            for element in element_to_remove:
+                self.active_tail_available_road_chains.remove(element)
+
+        if chain_type == 'c':
+            check_points = [[char_side, self.active_tail['number']]]
+            for city in self.active_tail['city']:
+                if char_side in city:
+                    print(city)
+                    for another_char_side in city:
+                        if another_char_side != char_side:
+                            check_points.append([another_char_side, self.active_tail['number']])
+
+            print('filter point to check ', check_points, ' in ', self.active_tail_available_city_chains)
+
+            for chain_index in self.active_tail_available_city_chains:
+                chain = self.cities[chain_index]
+                for check_point in check_points:
+                    if check_point in chain['path']:
+                        check_counter += 1
+                if check_counter == 0:
+                    element_to_remove.append(chain_index)
+
+            for element in element_to_remove:
+                self.active_tail_available_city_chains.remove(element)
+
     def check_char_location_to_set_on_active_chains(self, char_side, chain_type):
+
+        self.filter_available_chains_to_char_side(char_side, chain_type)
+
         if chain_type == 'r':
             check_point = [char_side, self.active_tail['number']]
             for chain_index in range(len(self.roads)):
@@ -1151,7 +1209,7 @@ class NewGame(QWidget):
                     for check_point in points_to_check:
                         check_point_side = check_point[0]
                         if check_point_side not in self.visited_sides and check_point_side != "end_point":
-                            print('check another point ', new_chain_point)
+                            print('check another point ', check_point_side)
                             self.visited_sides.append(check_point_side)
                             n_tail = n_tails[check_point_side]
                             print('neighbor, ', n_tail)
@@ -1192,12 +1250,14 @@ class NewGame(QWidget):
             for chain_index in range(len(self.cities)): # every chain
                 for point_index in range(len(self.cities[chain_index]['path'])): # every point in chain
                     if self.cities[chain_index]['path'][point_index] == [self.opposite_side_dict[new_chain_side_name], n_tail_number]:
+                        print('first chain index of n tail number ', n_tail_number, ' in ', self.cities, '..... for new chain side....', new_chain_side_name, ' is ', [chain_index, point_index])
                         return [chain_index, point_index]
         
         if chain_type == 'r':
             for chain_index in range(len(self.roads)): # every chain
                 for point_index in range(len(self.roads[chain_index]['path'])): # every point in chain
                     if self.roads[chain_index]['path'][point_index] == [self.opposite_side_dict[new_chain_side_name], n_tail_number]:
+                        print('first chain index of n tail number ', n_tail_number, ' in ', self.roads, '..... for new chain side....', new_chain_side_name, ' is ', [chain_index, point_index])
                         return [chain_index, point_index]
 
     def replace_point_except_point(self, c_index, p_index, point_list_to_add, except_point, chain_type):
@@ -1252,10 +1312,12 @@ class NewGame(QWidget):
         return return_list
 
     def add_neighbor_chain_to_chain(self, n_c_index, c_index, p_index, n_except_point, chain_type):
-        print('neighbor chain ', self.cities[n_c_index], 'n excepr point ', n_except_point)
-        print('self chain ', self.cities[c_index])
+        #print(n_c_index,' neighbor chain ', self.cities[n_c_index], 'n excepr point ', n_except_point)
+        #print('self chain ', self.cities[c_index])
         first = False
+
         if chain_type == 'c':
+            print(n_c_index,' neighbor chain ', self.cities[n_c_index], 'n excepr point ', n_except_point)
             result_list = self.cities[c_index]['path'][:p_index]
             for point in self.cities[n_c_index]['path']:
                 if point != n_except_point or first:
@@ -1275,9 +1337,11 @@ class NewGame(QWidget):
 
             print('add_neighbor_chain_to_chain_city', self.cities[c_index]['path'])
 
-            self.cities = self.cities[:n_c_index] + self.cities[n_c_index+1:]
+            if n_c_index != c_index:
+                 self.cities = self.cities[:n_c_index] + self.cities[n_c_index+1:]
 
         if chain_type == 'r':
+            print(n_c_index,' neighbor chain ', self.roads[n_c_index], 'n excepr point ', n_except_point)
             result_list = self.roads[c_index]['path'][:p_index]
             for point in self.roads[n_c_index]['path']:
                 if point != n_except_point or first:
@@ -1290,15 +1354,18 @@ class NewGame(QWidget):
 
             if self.roads[n_c_index]['active']:
                 self.roads[c_index]['active'] = True
-        
+
+            print('add_neighbor_chain_to_chain_road', self.roads[c_index]['path'], c_index)
+
             self.roads[c_index]['player'].extend(self.roads[n_c_index]['player'])
             self.roads[c_index]['char_ids'].extend(self.roads[n_c_index]['char_ids'])
-            self.roads[c_index]['end_point'].extend(self.roads[n_c_index]['end_point'])
-            self.roads[c_index]['score'] += self.roads[n_c_index]['player']
+            self.roads[c_index]['end_points'].extend(self.roads[n_c_index]['end_points'])
+            self.roads[c_index]['score'] += self.roads[n_c_index]['score']
 
             print('add_neighbor_chain_to_chain_road', self.roads[c_index]['path'])
 
-            self.roads = self.roads[:n_c_index] + self.roads[n_c_index+1:]
+            if n_c_index != c_index:
+                self.roads = self.roads[:n_c_index] + self.roads[n_c_index+1:]
 
     def transform_tail_sides(self):
         rotation_dict = {'top': 'right', 'right': 'bot', 'bot': 'left', 'left': 'top'}
