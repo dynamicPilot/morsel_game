@@ -358,7 +358,7 @@ class NewGame(QWidget):
     def start_game(self):
         self.tails = self.tails_data.tails
         self.tails = self.tails[1:]
-        random.shuffle(self.tails)
+        #random.shuffle(self.tails)
         players_list = ['player1', 'player2']
         random.shuffle(players_list)
         self.active_player = players_list[0]
@@ -392,7 +392,13 @@ class NewGame(QWidget):
         self.make_active_player_chat_button_not_visible()
 
         if len(self.tails) > 0:
-            print("new turn")
+            print("\n\n---NEW TURN--\n")
+
+            print('chains:\n')
+            print('monastery ', self.monasteries)
+            print('city ', self.cities)
+            print('road ', self.roads)
+
             self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['active'] = False
 
             if self.active_char_id is not None:
@@ -409,6 +415,8 @@ class NewGame(QWidget):
 
             self.players[self.active_player]['note_widget'].setText(self.notes[self.game_state[0]][0])
             self.players[self.rest_player]['note_widget'].setText(self.notes[self.game_state[0]][1][random.randint(0, len(self.notes[self.game_state[0]][1])-1)])
+
+            print('\nACTIVE PLAYER ', self.active_player)
         else:
             self.game_over_state()
 
@@ -512,6 +520,8 @@ class NewGame(QWidget):
         if len(self.tails) > 0 and self.game_state[0] == 'add new tail':
             tail = self.tails.pop(0)
             self.active_tail = tail
+            print('\nACTIVE TAIL ', self.active_tail)
+            print('------------------------------------\n')
             tail_name = tail['name']
             tail_widget = self.players[self.active_player]['tail_widget']
             self.set_tail_to_container(tail_widget, tail_name, conf.player_tail_size)
@@ -637,6 +647,238 @@ class NewGame(QWidget):
                 self.active_char_id = char_id
                 return
 
+    def get_tail_row_col(self, tail_number):
+        """
+        Return row, col in game_grid for tail with tail_number.
+        """
+        for col in range(conf.game_grid_width):
+            for row in range(conf.game_grid_height):
+                if self.game_grid[row][col]['tail'] == tail_number:
+                    return row, col
+
+    def get_tail_neighbors(self, row = None, col = None):
+        """
+        Return dictionary:
+        neighbors = {'top': None, 'right': None, 'bot': None, 'left': None}
+
+        with each neighbor:
+        neighbor = {'char_side': None, 'player': None, 'specials': [], 'tail_number': None, 'row': row, 'col': col}
+        """
+        neighbors = {'top': None, 'right': None, 'bot': None, 'left': None}
+        if row is None:
+            row = self.active_desk_id[0]
+        if col is None:
+            col = self.active_desk_id[1]
+
+        # neighbor tails check
+        if row > 0:
+            neighbor = self.create_neighbor_dictionary(row-1, col, "bot")
+            neighbors["top"] = neighbor
+        if row < conf.game_grid_height-1:
+            neighbor = self.create_neighbor_dictionary(row+1, col, "top")
+            neighbors["bot"] = neighbor
+        if col > 0:
+            neighbor = self.create_neighbor_dictionary(row, col-1, "right")
+            neighbors["left"] = neighbor
+        if col < conf.game_grid_width-1:
+            neighbor = self.create_neighbor_dictionary(row, col+1, "left")
+            neighbors["right"] = neighbor
+
+        return neighbors
+
+    def create_neighbor_dictionary(self, row, col, side):
+        """
+        Create dictionary for specific neighbor.
+        Need:
+        - neighbor row,
+        - neighbor col,
+        - tail side.
+
+        Dictionary format:
+        neighbor = {'char_side': None, 'player': None, 'specials': [], 'tail_number': None, 'row': row, 'col': col}
+        """
+        neighbor = {'char_side': None, 'player': None, 'specials': [], 'tail_number': None, 'row': row, 'col': col}
+        tail_number = self.game_grid[row][col]['tail']
+        if tail_number is None:
+            return None
+
+        for key, value in self.tails_data.tails[int(tail_number)].items():
+            if value in self.specials_list:
+                neighbor['specials'].append(key)
+
+        neighbor['char_side'] = self.game_grid[row][col]['char_side']
+        neighbor['player'] = self.game_grid[row][col]['player']
+        neighbor['tail_number'] = tail_number
+        
+        return neighbor
+   
+    def check_tail_location(self):
+        self.transform_tail_sides()
+        row = self.active_desk_id[0]
+        col = self.active_desk_id[1]
+        top_tail_edge = self.active_tail['top']
+        bot_tail_edge = self.active_tail['bot']
+        right_tail_edge = self.active_tail['right']
+        left_tail_edge = self.active_tail['left']
+        none_sides = 0
+
+        # neighbor tails check
+        if row > 0:
+            if self.game_grid[row-1][col]['tail'] is not None:
+                tail_number = self.game_grid[row-1][col]['tail']
+                top_neighbor_tail_edge = self.tails_data.tails[int(tail_number)]['bot']
+                if top_neighbor_tail_edge != top_tail_edge:
+                    self.display_message("Top side is incorrect.")
+                    return False
+            else:
+                none_sides += 1
+        if row < conf.game_grid_height-1:
+            if self.game_grid[row+1][col]['tail'] is not None:
+                tail_number = self.game_grid[row+1][col]['tail']
+                bot_neighbor_tail_edge = self.tails_data.tails[int(tail_number)]['top']
+                if bot_neighbor_tail_edge != bot_tail_edge:
+                    self.display_message("Bottom side is incorrect.")
+                    return False
+            else:
+                none_sides += 1
+        if col > 0:
+            if self.game_grid[row][col-1]['tail'] is not None:
+                tail_number = self.game_grid[row][col-1]['tail']
+                left_neighbor_tail_edge = self.tails_data.tails[int(tail_number)]['right']
+                if left_neighbor_tail_edge != left_tail_edge:
+                    self.display_message("Left side is incorrect.")
+                    return False
+            else:
+                none_sides += 1
+        if col < conf.game_grid_width-1:
+            if self.game_grid[row][col+1]['tail'] is not None:
+                tail_number = self.game_grid[row][col+1]['tail']
+                right_neighbor_tail_edge = self.tails_data.tails[int(tail_number)]['left']
+                if right_neighbor_tail_edge != right_tail_edge:
+                    self.display_message("Right side is incorrect.")
+                    return False
+            else:
+                none_sides += 1
+        
+        if none_sides == 4:
+            self.display_message("Your tail does not have got a neighbor.")     
+            return False
+
+        return True
+
+    def check_char_location(self):
+        char_side = self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['char_side']
+        if char_side is None:
+            self.display_message('No character to set.')
+            return
+            
+        if char_side != 'center':
+            char_side_name = self.active_tail[char_side] # active tail side letter
+        else:
+            if not self.active_tail['monastery']: # not monastery
+                self.display_message('This tail is not a monastery.\nYou can not set your character on center.')
+                return False
+            elif len(self.active_tail_available_monastery_chains) == 0:
+                self.display_message('No free monasteries.')
+                return False
+            else:
+                return True
+
+        if char_side_name == 'f':
+            self.display_message('You can not set your character on field.')
+            return False
+
+        if char_side_name == 'c':
+            if len(self.active_tail_available_city_chains) > 0:
+                if not self.check_char_location_to_set_on_active_chains(char_side, char_side_name):
+                    return False
+                else:
+                    return True
+            else:
+                self.display_message('No free cities.')
+                return False
+
+        if char_side_name == 'r':
+            if len(self.active_tail_available_road_chains) > 0:
+                if not self.check_char_location_to_set_on_active_chains(char_side, char_side_name):
+                    return False
+                else:
+                    return True
+            else:
+                self.display_message('No free roads.')
+                return False
+
+        return True
+
+    def check_char_location_to_set_on_active_chains(self, char_side, chain_type):
+
+        self.filter_available_chains_to_char_side(char_side, chain_type)
+
+        if chain_type == 'r':
+            check_point = [char_side, self.active_tail['number']]
+            for chain_index in range(len(self.roads)):
+                chain = self.roads[chain_index]
+                if check_point in chain['path'] and chain_index not in self.active_tail_available_road_chains:
+                    self.display_message('This road is not free.')
+                    return False
+            return True
+
+        if chain_type == 'c':
+            check_point = [char_side, self.active_tail['number']]
+            for chain_index in range(len(self.cities)):
+                chain = self.cities[chain_index]
+                if check_point in chain['path'] and chain_index not in self.active_tail_available_city_chains:
+                    self.display_message('This city is not free.')
+                    return False
+            return True
+
+    def filter_available_chains_to_char_side(self, char_side, chain_type):
+        element_to_remove = []
+        check_counter = 0
+        if chain_type == 'r':
+            check_points = [[char_side, self.active_tail['number']]]
+            for road in self.active_tail['road']:
+                if char_side in road:
+                    print(road)
+                    for another_char_side in road:
+                        if another_char_side != char_side:
+                            check_points.append([another_char_side, self.active_tail['number']])
+
+            print('filter point to check ', check_points, ' in ', self.active_tail_available_road_chains)
+
+            for chain_index in self.active_tail_available_road_chains:
+                chain = self.roads[chain_index]
+                for check_point in check_points:
+                    if check_point in chain['path']:
+                        check_counter += 1
+                if check_counter == 0:
+                    element_to_remove.append(chain_index)
+
+            for element in element_to_remove:
+                self.active_tail_available_road_chains.remove(element)
+
+        if chain_type == 'c':
+            check_points = [[char_side, self.active_tail['number']]]
+            for city in self.active_tail['city']:
+                if char_side in city:
+                    print(city)
+                    for another_char_side in city:
+                        if another_char_side != char_side:
+                            check_points.append([another_char_side, self.active_tail['number']])
+
+            print('filter point to check ', check_points, ' in ', self.active_tail_available_city_chains)
+
+            for chain_index in self.active_tail_available_city_chains:
+                chain = self.cities[chain_index]
+                for check_point in check_points:
+                    if check_point in chain['path']:
+                        check_counter += 1
+                if check_counter == 0:
+                    element_to_remove.append(chain_index)
+
+            for element in element_to_remove:
+                self.active_tail_available_city_chains.remove(element)
+
     def count_scores_and_finish_chains(self, final=False):
         self.check_road_chains_to_finish()
         self.check_monastery_chains_to_finish()
@@ -735,45 +977,32 @@ class NewGame(QWidget):
             print('reset char for player ', char_player, ' and id ', char_id)
 
     def check_road_chains_to_finish(self):
-        print('check road chains ')
+        print('Start check road chains ... ')
         for chain in self.roads:
-            if len(chain['end_points']) > 1 and chain['active'] and not chain['finished']:
+            if len(chain['end_points']) > 1 and not chain['finished']: #and chain['active']
                 chain['finished'] = True
                 chain['active'] = False
-                print('Finish road chain ', chain)
+                print('Finish road chain ... ', chain)
 
-    def check_monastery_chains_to_finish(self):
-        print('check monasteries chains ')
-        for chain in self.monasteries:
-            if len(chain['tails']) == 8 and chain['active'] and not chain['finished']:
-                chain['finished'] = True
-                chain['active'] = False
-                print('Finish monastery chain ', chain)
-
-    def check_city_chains_to_finish(self):
-        print('check city chains ')
-        lost_points = []
-
-        for chain in self.cities:
-
-            if chain['active'] and not chain['finished']:
+            if len(chain['end_points']) == 0 and not chain['finished']: #and chain['active']
+                # check circle chain without end points
+                print('Start check roads for circle chains ... ')
                 lost_points = [chain['path'][-1]]
                 visited_points = []
                 end_points = chain['path'][:-1]
                 break_mark = False
 
                 while len(lost_points) > 0 and not break_mark and len(end_points) > 0:
-
-                    current_point = lost_points.pop(0)
+                    current_point = lost_points.pop()
                     visited_points.append(current_point)
                     current_point_number = current_point[1]
                     current_point_side = current_point[0]
                     print('visited ', visited_points, 'end_points ', end_points, 'lost points ', lost_points)
-                    
-                    print(f'current point number is {current_point_number}, current point side is {current_point_side}. Tail city is ', self.tails_data.tails[current_point_number]['city'])
 
-                    if len(self.tails_data.tails[current_point_number]['city'][0]) > 1:
-                        for side in self.tails_data.tails[current_point_number]['city'][0]:
+                    print(f'current point number is {current_point_number}, current point side is {current_point_side}. Tail road is ', self.tails_data.tails[current_point_number]['road'])
+
+                    if len(self.tails_data.tails[current_point_number]['road'][0]) > 1:
+                        for side in self.tails_data.tails[current_point_number]['road'][0]:
                             if side != current_point_side:
                                 can_be_end_point = [side, current_point_number]
                                 if can_be_end_point not in visited_points:
@@ -790,6 +1019,80 @@ class NewGame(QWidget):
                             break_mark = True
 
                     if not break_mark:
+                        row, col = self.get_tail_row_col(current_point_number)
+                        n_tail = self.get_tail_neighbors(row, col)[current_point_side]
+                        print(n_tail)
+                        if n_tail is None:
+                            print('no neighbor')
+                            break_mark = True
+                        else:
+                            can_be_end_point = [self.opposite_side_dict[current_point_side], n_tail['tail_number']]
+                            if [current_point_side, current_point_number] in end_points: # current point is an end point
+                                print('remove end point ', [current_point_side, current_point_number])
+                                end_points.remove([current_point_side, current_point_number])
+                            else:
+                                lost_points.append(can_be_end_point)
+                                print('add lost point after n_tail', can_be_end_point)
+                        print('visited end', visited_points)
+
+                if len(end_points) == 0 and len(lost_points) == 0:
+
+                    chain['finished'] = True
+                    chain['active'] = False
+                    print('Finish road chain ... ', chain)
+
+    def check_monastery_chains_to_finish(self):
+        print('check monasteries chains ')
+        for chain in self.monasteries:
+            if len(chain['tails']) == 8 and not chain['finished']: #and chain['active']
+                chain['finished'] = True
+                chain['active'] = False
+                print('Finish monastery chain ', chain)
+
+    def check_city_chains_to_finish(self):
+        print('Start check city chains ... ')
+        lost_points = []
+
+        for chain in self.cities:
+
+            if not chain['finished']: #chain['active'] and
+                lost_points = [chain['path'][-1]]
+                visited_points = []
+                end_points = chain['path'][:-1]
+                break_mark = False
+
+                while len(lost_points) > 0 and not break_mark and len(end_points) > 0:
+
+                    current_point = lost_points.pop(0)
+                    visited_points.append(current_point)
+                    current_point_number = current_point[1]
+                    current_point_side = current_point[0]
+                    print('visited ', visited_points, 'end_points ', end_points, 'lost points ', lost_points)
+                    
+                    print(f'current point number is {current_point_number}, current point side is {current_point_side}. Tail city is ', self.tails_data.tails[current_point_number]['city'])
+
+                    if len(self.tails_data.tails[current_point_number]['city'][0]) > 1:
+                        was_added = False
+                        for side in self.tails_data.tails[current_point_number]['city'][0]:
+                            if side != current_point_side:
+                                can_be_end_point = [side, current_point_number]
+                                if can_be_end_point not in visited_points:
+                                    lost_points.append(can_be_end_point)
+                                    print('add lost point ', can_be_end_point)
+                                    was_added = True
+                        print('finish look at sides of current point')
+                        if was_added:
+                            print('remove ', current_point)
+                            if len(lost_points) > 0:
+                                current_point = lost_points.pop()
+                                visited_points.append(current_point)
+                                current_point_side = current_point[0]
+                                print(f'current point number is {current_point_number}, current point side is {current_point_side}. Tail city is ', self.tails_data.tails[current_point_number]['city'])
+                                print('visited ', visited_points)
+                            else:
+                                break_mark = True
+
+                    if not break_mark:
 
                         row, col = self.get_tail_row_col(current_point_number)
                         n_tail = self.get_tail_neighbors(row, col)[current_point_side]
@@ -801,12 +1104,14 @@ class NewGame(QWidget):
                             break_mark = True
                         else:
                             can_be_end_point = [self.opposite_side_dict[current_point_side], n_tail['tail_number']]
+                            print('can be end point ', can_be_end_point, 'end points', end_points)
                             if can_be_end_point in end_points: # current point is an end point
                                 print('remove end point ', can_be_end_point)
                                 end_points.remove(can_be_end_point)
                             else:
-                                lost_points.append(can_be_end_point)
-                                print('add lost point after n_tail', can_be_end_point)
+                                if can_be_end_point not in visited_points:
+                                    lost_points.append(can_be_end_point)
+                                    print('add lost point after n_tail', can_be_end_point)
 
                         print('visited end', visited_points)
 
@@ -814,15 +1119,6 @@ class NewGame(QWidget):
                     chain['finished'] = True
                     chain['active'] = False
                     print('Finish city chain ', chain)
-
-    def get_tail_row_col(self, tail_number):
-        """
-        Return row, col in game_grid for tail with tail_number.
-        """
-        for col in range(conf.game_grid_width):
-            for row in range(conf.game_grid_height):
-                if self.game_grid[row][col]['tail'] == tail_number:
-                    return row, col
         
     def set_active_char_to_available_chains(self):
         print('start set char final')
@@ -831,10 +1127,10 @@ class NewGame(QWidget):
         print('monastery ', self.active_tail_available_monastery_chains)
         print('city ', self.active_tail_available_city_chains)
         print('road ', self.active_tail_available_road_chains)
-
-        print('set char to available chains, char side: ',  self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['char_side'], self.active_tail[self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['char_side']])
+       
         char_side = self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['char_side']
         if char_side == 'center':
+            print('set char to available chains, char side: ',  self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['char_side'])
             c_index = self.active_tail_available_monastery_chains[0]
             self.monasteries[c_index]['player'].append(self.active_player)
             self.monasteries[c_index]['char_ids'].append([self.active_char_id, self.active_player])
@@ -843,6 +1139,7 @@ class NewGame(QWidget):
             self.players_char_lists[self.active_player][self.active_char_id]['grid_id'] = self.active_desk_id
             print(f'Char id {self.active_char_id} of {self.active_player} set in monastery chain {self.monasteries[c_index]} and tail number {self.active_tail["number"]}.')
         elif self.active_tail[char_side] == 'r' and len(self.active_tail_available_road_chains) >0:
+            print('set char to available chains, char side: ',  self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['char_side'], self.active_tail[self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['char_side']])
             c_index = self.active_tail_available_road_chains[0]
             self.roads[c_index]['player'].append(self.active_player)
             self.roads[c_index]['char_ids'].append([self.active_char_id, self.active_player])
@@ -851,6 +1148,7 @@ class NewGame(QWidget):
             self.players_char_lists[self.active_player][self.active_char_id]['grid_id'] = self.active_desk_id
             print(f'Char id {self.active_char_id} of {self.active_player} set in road chain {self.roads[c_index]} and tail number {self.active_tail["number"]}.')
         elif self.active_tail[char_side] == 'c' and len(self.active_tail_available_city_chains) >0:
+            print('set char to available chains, char side: ',  self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['char_side'], self.active_tail[self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['char_side']])
             c_index = self.active_tail_available_city_chains[0]
             self.cities[c_index]['player'].append(self.active_player)
             self.cities[c_index]['char_ids'].append([self.active_char_id, self.active_player])
@@ -861,219 +1159,6 @@ class NewGame(QWidget):
         else:
             print('Player char is NOT SET.')
             return
-
-    def check_char_location(self):
-        char_side = self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['char_side']
-        if char_side is None:
-            self.display_message('No character to set.')
-            return
-            
-        if char_side != 'center':
-            char_side_name = self.active_tail[char_side] # active tail side letter
-        else:
-            if not self.active_tail['monastery']: # not monastery
-                self.display_message('This tail is not a monastery.\nYou can not set your character on center.')
-                return False
-            elif len(self.active_tail_available_monastery_chains) == 0:
-                self.display_message('No free monasteries.')
-                return False
-            else:
-                return True
-
-        if char_side_name == 'f':
-            self.display_message('You can not set your character on field.')
-            return False
-
-        if char_side_name == 'c':
-            if len(self.active_tail_available_city_chains) > 0:
-                if not self.check_char_location_to_set_on_active_chains(char_side, char_side_name):
-                    return False
-                else:
-                    return True
-            else:
-                self.display_message('No free cities.')
-                return False
-
-        if char_side_name == 'r':
-            if len(self.active_tail_available_road_chains) > 0:
-                if not self.check_char_location_to_set_on_active_chains(char_side, char_side_name):
-                    return False
-                else:
-                    return True
-            else:
-                self.display_message('No free roads.')
-                return False
-
-        return True
-
-    def filter_available_chains_to_char_side(self, char_side, chain_type):
-        element_to_remove = []
-        check_counter = 0
-        if chain_type == 'r':
-            check_points = [[char_side, self.active_tail['number']]]
-            for road in self.active_tail['road']:
-                if char_side in road:
-                    print(road)
-                    for another_char_side in road:
-                        if another_char_side != char_side:
-                            check_points.append([another_char_side, self.active_tail['number']])
-
-            print('filter point to check ', check_points, ' in ', self.active_tail_available_road_chains)
-
-            for chain_index in self.active_tail_available_road_chains:
-                chain = self.roads[chain_index]
-                for check_point in check_points:
-                    if check_point in chain['path']:
-                        check_counter += 1
-                if check_counter == 0:
-                    element_to_remove.append(chain_index)
-
-            for element in element_to_remove:
-                self.active_tail_available_road_chains.remove(element)
-
-        if chain_type == 'c':
-            check_points = [[char_side, self.active_tail['number']]]
-            for city in self.active_tail['city']:
-                if char_side in city:
-                    print(city)
-                    for another_char_side in city:
-                        if another_char_side != char_side:
-                            check_points.append([another_char_side, self.active_tail['number']])
-
-            print('filter point to check ', check_points, ' in ', self.active_tail_available_city_chains)
-
-            for chain_index in self.active_tail_available_city_chains:
-                chain = self.cities[chain_index]
-                for check_point in check_points:
-                    if check_point in chain['path']:
-                        check_counter += 1
-                if check_counter == 0:
-                    element_to_remove.append(chain_index)
-
-            for element in element_to_remove:
-                self.active_tail_available_city_chains.remove(element)
-
-    def check_char_location_to_set_on_active_chains(self, char_side, chain_type):
-
-        self.filter_available_chains_to_char_side(char_side, chain_type)
-
-        if chain_type == 'r':
-            check_point = [char_side, self.active_tail['number']]
-            for chain_index in range(len(self.roads)):
-                chain = self.roads[chain_index]
-                if check_point in chain['path'] and chain_index not in self.active_tail_available_road_chains:
-                    self.display_message('This road is not free.')
-                    return False
-            return True
-
-        if chain_type == 'c':
-            check_point = [char_side, self.active_tail['number']]
-            for chain_index in range(len(self.cities)):
-                chain = self.cities[chain_index]
-                if check_point in chain['path'] and chain_index not in self.active_tail_available_city_chains:
-                    self.display_message('This city is not free.')
-                    return False
-            return True
-
-    def get_tail_neighbors(self, row = None, col = None):
-        """
-        Return dictionary:
-        neighbors = {'top': None, 'right': None, 'bot': None, 'left': None}
-
-        with each neighbor:
-        neighbor = {'char_side': None, 'player': None, 'specials': [], 'tail_number': None}
-        """
-        neighbors = {'top': None, 'right': None, 'bot': None, 'left': None}
-        if row is None:
-            row = self.active_desk_id[0]
-        if col is None:
-            col = self.active_desk_id[1]
-
-        # neighbor tails check
-        if row > 0:
-            neighbor = self.create_neighbor_dictionary(row-1, col, "bot")
-            neighbors["top"] = neighbor
-        if row < conf.game_grid_height-1:
-            neighbor = self.create_neighbor_dictionary(row+1, col, "top")
-            neighbors["bot"] = neighbor
-        if col > 0:
-            neighbor = self.create_neighbor_dictionary(row, col-1, "right")
-            neighbors["left"] = neighbor
-        if col < conf.game_grid_width-1:
-            neighbor = self.create_neighbor_dictionary(row, col+1, "left")
-            neighbors["right"] = neighbor
-
-        return neighbors
-
-    def create_neighbor_dictionary(self, row, col, side):
-        neighbor = {'char_side': None, 'player': None, 'specials': [], 'tail_number': None, 'row': row, 'col': col}
-        tail_number = self.game_grid[row][col]['tail']
-        if tail_number is None:
-            return None
-
-        for key, value in self.tails_data.tails[int(tail_number)].items():
-            if value in self.specials_list:
-                neighbor['specials'].append(key)
-
-        neighbor['char_side'] = self.game_grid[row][col]['char_side']
-        neighbor['player'] = self.game_grid[row][col]['player']
-        neighbor['tail_number'] = tail_number
-        
-        return neighbor
-
-    def check_tail_location(self):
-        self.transform_tail_sides()
-        row = self.active_desk_id[0]
-        col = self.active_desk_id[1]
-        top_tail_edge = self.active_tail['top']
-        bot_tail_edge = self.active_tail['bot']
-        right_tail_edge = self.active_tail['right']
-        left_tail_edge = self.active_tail['left']
-        none_sides = 0
-
-        # neighbor tails check
-        if row > 0:
-            if self.game_grid[row-1][col]['tail'] is not None:
-                tail_number = self.game_grid[row-1][col]['tail']
-                top_neighbor_tail_edge = self.tails_data.tails[int(tail_number)]['bot']
-                if top_neighbor_tail_edge != top_tail_edge:
-                    self.display_message("Top side is incorrect.")
-                    return False
-            else:
-                none_sides += 1
-        if row < conf.game_grid_height-1:
-            if self.game_grid[row+1][col]['tail'] is not None:
-                tail_number = self.game_grid[row+1][col]['tail']
-                bot_neighbor_tail_edge = self.tails_data.tails[int(tail_number)]['top']
-                if bot_neighbor_tail_edge != bot_tail_edge:
-                    self.display_message("Bottom side is incorrect.")
-                    return False
-            else:
-                none_sides += 1
-        if col > 0:
-            if self.game_grid[row][col-1]['tail'] is not None:
-                tail_number = self.game_grid[row][col-1]['tail']
-                left_neighbor_tail_edge = self.tails_data.tails[int(tail_number)]['right']
-                if left_neighbor_tail_edge != left_tail_edge:
-                    self.display_message("Left side is incorrect.")
-                    return False
-            else:
-                none_sides += 1
-        if col < conf.game_grid_width-1:
-            if self.game_grid[row][col+1]['tail'] is not None:
-                tail_number = self.game_grid[row][col+1]['tail']
-                right_neighbor_tail_edge = self.tails_data.tails[int(tail_number)]['left']
-                if right_neighbor_tail_edge != right_tail_edge:
-                    self.display_message("Right side is incorrect.")
-                    return False
-            else:
-                none_sides += 1
-        
-        if none_sides == 4:
-            self.display_message("Your tail does not have got a neighbor.")     
-            return False
-
-        return True
 
     def set_active_tail_chains(self):
         self.active_tail_chains = []
@@ -1199,8 +1284,10 @@ class NewGame(QWidget):
                     if without_neghbors is None:
                         without_neghbors = True
                 else: # if neighbor exists
+                    print('neighbor ', n_tail)
                     without_neghbors = False
                     n_tail_number = n_tail['tail_number']
+                    print('calling function with ', n_tail_number, new_chain_point_side, chain_type)
                     chain_index, point_index = self.find_first_chain_index_point_index(n_tail_number, new_chain_point_side, chain_type)
                     except_point = new_chain_point
                     points_to_check = self.replace_point_except_point(chain_index, point_index, new_chain[1:], except_point, chain_type)
@@ -1224,6 +1311,8 @@ class NewGame(QWidget):
             print('create new chain...')
             if chain_type == 'c':
                 chain_to_add = {'path': [new_chain[1], new_chain[2]], 'active': False, 'player': [], 'score': 2, 'finished': False, 'char_ids': [], 'closed': False}
+                if len(new_chain)>3:
+                    chain_to_add['path'].append(new_chain[3])
                 if self.active_tail['city_mark']:
                     chain_to_add['score'] += 2
                 self.cities.append(chain_to_add)
@@ -1317,7 +1406,8 @@ class NewGame(QWidget):
         first = False
 
         if chain_type == 'c':
-            print(n_c_index,' neighbor chain ', self.cities[n_c_index], 'n excepr point ', n_except_point)
+            print('\n\nneighbor chain ', self.cities[n_c_index], 'n excepr point ', n_except_point, ' n index ', n_c_index)
+            print('self chain ', self.cities[c_index], ' self index ', c_index)
             result_list = self.cities[c_index]['path'][:p_index]
             for point in self.cities[n_c_index]['path']:
                 if point != n_except_point or first:
@@ -1330,10 +1420,19 @@ class NewGame(QWidget):
 
             if self.cities[n_c_index]['active']:
                 self.cities[c_index]['active'] = True
+
+            not_double_score = 0
         
-            self.cities[c_index]['player'].extend(self.cities[n_c_index]['player'])
-            self.cities[c_index]['char_ids'].extend(self.cities[n_c_index]['char_ids'])
-            self.cities[c_index]['score'] += self.cities[n_c_index]['score']
+            for n_player in self.cities[n_c_index]['player']:
+                if n_player not in self.cities[c_index]['player']:
+                    self.cities[c_index]['player'].append(n_player)
+            for n_char in self.cities[n_c_index]['char_ids']:
+                if n_char not in self.cities[c_index]['char_ids']:
+                    self.cities[c_index]['char_ids'].append(n_char)
+                else:
+                    not_double_score += 1
+            if not_double_score == 0:
+                self.cities[c_index]['score'] += self.cities[n_c_index]['score']
 
             print('add_neighbor_chain_to_chain_city', self.cities[c_index]['path'])
 
@@ -1341,7 +1440,8 @@ class NewGame(QWidget):
                  self.cities = self.cities[:n_c_index] + self.cities[n_c_index+1:]
 
         if chain_type == 'r':
-            print(n_c_index,' neighbor chain ', self.roads[n_c_index], 'n excepr point ', n_except_point)
+            print('\n\nneighbor chain ', self.roads[n_c_index], 'n excepr point ', n_except_point, ' n index ', n_c_index)
+            print('self chain ', self.roads[c_index], ' self index ', c_index)
             result_list = self.roads[c_index]['path'][:p_index]
             for point in self.roads[n_c_index]['path']:
                 if point != n_except_point or first:
@@ -1356,11 +1456,20 @@ class NewGame(QWidget):
                 self.roads[c_index]['active'] = True
 
             print('add_neighbor_chain_to_chain_road', self.roads[c_index]['path'], c_index)
+            not_double_score = 0
 
-            self.roads[c_index]['player'].extend(self.roads[n_c_index]['player'])
-            self.roads[c_index]['char_ids'].extend(self.roads[n_c_index]['char_ids'])
+            for n_player in self.roads[n_c_index]['player']:
+                if n_player not in self.roads[c_index]['player']:
+                    self.roads[c_index]['player'].append(n_player)
+            for n_char in self.roads[n_c_index]['char_ids']:
+                if n_char not in self.roads[c_index]['char_ids']:
+                    self.roads[c_index]['char_ids'].append(n_char)
+                else:
+                    not_double_score += 1
             self.roads[c_index]['end_points'].extend(self.roads[n_c_index]['end_points'])
-            self.roads[c_index]['score'] += self.roads[n_c_index]['score']
+            if not_double_score == 0:
+                print(self.roads[c_index]['score'], self.roads[n_c_index]['score'])
+                self.roads[c_index]['score'] += self.roads[n_c_index]['score']
 
             print('add_neighbor_chain_to_chain_road', self.roads[c_index]['path'])
 
@@ -1371,7 +1480,7 @@ class NewGame(QWidget):
         rotation_dict = {'top': 'right', 'right': 'bot', 'bot': 'left', 'left': 'top'}
         rotate_number = self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['transform'] % 4
 
-        print(' before rotating....', self.active_tail)
+        print(' before rotating....', self.active_tail, 'transformation number is ', rotate_number)
 
         while (rotate_number > 0):
 
@@ -1392,8 +1501,10 @@ class NewGame(QWidget):
         print('after rotating....', self.active_tail)
 
     def set_original_tail_sides(self):
+        print('active tail before set original ', self.active_tail, 'transformation number for current grid cell ', self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['transform'])
         tail_number = self.active_tail['number']
         self.active_tail = self.tails_data.tails[int(tail_number)]
+        print('active tail after set original ', self.active_tail)
 
     def display_message(self, text):
         mes = QMessageBox()
