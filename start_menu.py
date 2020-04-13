@@ -95,6 +95,8 @@ class StartMenu(QWidget):
         
             
     def start_new_game(self):
+        self.players['player1']['score'] = 0
+        self.players['player2']['score'] = 0
         self.new_game_window = NewGame(self.players)
         self.new_game_window.show()
 

@@ -19,9 +19,9 @@ class TailsData:
         name = name[:-4]
 
         tail_dictionary = {'number': int(name[:2]), 'top': name[3], 'right': name[5], 'bot': name[7], 'left': name[9], 'name': name, 
-        'monastery': False, 'city_mark': False, 'city': False, 'end_point': False, 'road': False}
+        'monastery': False, 'city_mark': False, 'city': False, 'end_point': False, 'road': False, 'corner_sep': False}
 
-        special_signs = {'m': 'monastery', 'k': 'city_mark', 'g': 'long_city', 'l': 'corner_long_city', 'x': 'cross_road'}
+        special_signs = {'m': 'monastery', 'k': 'city_mark', 'g': 'long_city', 'l': 'corner_long_city', 'x': 'cross_road', 's': 'corner_sep'}
         check_side_loop_list = ['top', 'right', 'bot', 'left']
 
         for key, value in special_signs.items():
