@@ -358,7 +358,7 @@ class NewGame(QWidget):
     def start_game(self):
         self.tails = self.tails_data.tails
         self.tails = self.tails[1:]
-        #random.shuffle(self.tails)
+        random.shuffle(self.tails)
         players_list = ['player1', 'player2']
         random.shuffle(players_list)
         self.active_player = players_list[0]
