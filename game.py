@@ -388,6 +388,7 @@ class NewGame(QWidget):
 
     def next_turn(self):
 
+        self.print_active_player_chars()
         self.make_active_player_chat_button_not_active()
         self.make_active_player_chat_button_not_visible()
 
@@ -953,8 +954,9 @@ class NewGame(QWidget):
 
         for chain in self.monasteries:
             if chain['finished'] and not chain['closed']: 
-                self.players[chain['player'][0]]['score'] += chain['score']
-                self.return_char_from_finish_chain(chain['char_ids'])
+                if len(chain['player']) >0:
+                    self.players[chain['player'][0]]['score'] += chain['score']
+                    self.return_char_from_finish_chain(chain['char_ids'])
                 chain['closed'] = True
 
         self.players['player1']['score_label'].setText(str(int(self.players['player1']['score'])))
@@ -1447,7 +1449,11 @@ class NewGame(QWidget):
             print('add_neighbor_chain_to_chain_city', self.cities[c_index]['path'])
 
             if n_c_index != c_index:
-                 self.cities = self.cities[:n_c_index] + self.cities[n_c_index+1:]
+                self.cities = self.cities[:n_c_index] + self.cities[n_c_index+1:]
+                if c_index > n_c_index and c_index in self.active_tail_available_city_chains:
+                    self.active_tail_available_city_chains.remove(c_index)
+                    self.active_tail_available_city_chains.append(c_index-1)
+                print('remove ', c_index, ' append ', c_index - 1, ' in ', self.active_tail_available_city_chains, ' for ', self.cities[c_index-1]['path'])
 
         if chain_type == 'r':
             print('\n\nneighbor chain ', self.roads[n_c_index], 'n excepr point ', n_except_point, ' n index ', n_c_index)
@@ -1488,8 +1494,13 @@ class NewGame(QWidget):
 
             print('add_neighbor_chain_to_chain_road', self.roads[c_index]['path'])
 
+
             if n_c_index != c_index:
                 self.roads = self.roads[:n_c_index] + self.roads[n_c_index+1:]
+                if c_index > n_c_index and c_index in self.active_tail_available_road_chains:
+                    self.active_tail_available_road_chains.remove(c_index)
+                    self.active_tail_available_road_chains.append(c_index-1)
+                print('remove ', c_index, ' append ', c_index - 1, ' in ', self.active_tail_available_road_chains, ' for ', self.roads[c_index-1]['path'])
 
     def transform_tail_sides(self):
         rotation_dict = {'top': 'right', 'right': 'bot', 'bot': 'left', 'left': 'top'}
@@ -1514,11 +1525,19 @@ class NewGame(QWidget):
 
         self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['transform'] = 0
         print('after rotating....', self.active_tail)
+        print('after rotating.... original ', self.tails_data.tails[int(self.active_tail['number'])])
 
     def set_original_tail_sides(self):
+        """
+        Reset tail sides to original values.
+        """
         print('active tail before set original ', self.active_tail, 'transformation number for current grid cell ', self.game_grid[self.active_desk_id[0]][self.active_desk_id[1]]['transform'])
-        tail_number = self.active_tail['number']
-        self.active_tail = self.tails_data.tails[int(tail_number)]
+        original_image_name = self.active_tail['name']
+        print('file ', original_image_name)
+        self.active_tail['top'] = original_image_name[3]
+        self.active_tail['right'] = original_image_name[5]
+        self.active_tail['bot'] = original_image_name[7]
+        self.active_tail['left'] = original_image_name[9]
         print('active tail after set original ', self.active_tail)
 
     def display_message(self, text):
@@ -1531,3 +1550,21 @@ class NewGame(QWidget):
         mes.setIconPixmap(pixmap)
         mes.setText(text)
         mes.exec()
+
+    def print_active_player_chars(self):
+        print('printing chars...')
+        for char in self.players_char_lists[self.active_player]:
+            if char['active'] and char['tail'] is None:
+                char_widget = self.players_char_lists[self.active_player][char_id]['widget']
+                char_pixmap = QPixmap(f'{self.path_to_icon}/{self.players[self.active_player]["color"]}_men.png')
+                char_pixmap = char_pixmap.scaledToHeight(conf.char_picture_size)
+                char_widget.setPixmap(char_pixmap)
+                char_widget.setAlignment(QtCore.Qt.AlignCenter)
+                self.players_char_lists[self.active_player][char_id]['active'] = False
+                self.players_char_lists[self.active_player][char_id]['tail'] = None
+                self.players_char_lists[self.active_player][char_id]['grid_id'] = []
+
+                print('reset char for player ', self.active_player, ' and id ', char_id)
+            print(char)
+        
+        print('END')

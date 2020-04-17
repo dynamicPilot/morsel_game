@@ -71,5 +71,6 @@ class TailsData:
         return tail_dictionary
 
 
-tail_data = TailsData()
-print(tail_data.tails)
+
+
+
