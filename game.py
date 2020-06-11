@@ -388,7 +388,7 @@ class NewGame(QWidget):
 
     def next_turn(self):
 
-        self.print_active_player_chars()
+        #self.print_active_player_chars()
         self.make_active_player_chat_button_not_active()
         self.make_active_player_chat_button_not_visible()
 
